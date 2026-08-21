@@ -15,4 +15,13 @@ pub enum DomainError {
 
     #[error("task title must not be empty")]
     EmptyTaskTitle,
+
+    #[error("ten-min check is already closed")]
+    TenMinCheckAlreadyClosed,
+
+    #[error("reason can only be appended to a NoResponse check")]
+    ReasonNotAllowedForStatus,
+
+    #[error("reason has already been set for this check")]
+    ReasonAlreadySet,
 }

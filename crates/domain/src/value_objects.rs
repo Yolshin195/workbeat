@@ -77,14 +77,8 @@ mod tests {
 
     #[test]
     fn telegram_id_rejects_non_positive_values() {
-        assert_eq!(
-            TelegramId::new(0),
-            Err(DomainError::InvalidTelegramId(0))
-        );
-        assert_eq!(
-            TelegramId::new(-1),
-            Err(DomainError::InvalidTelegramId(-1))
-        );
+        assert_eq!(TelegramId::new(0), Err(DomainError::InvalidTelegramId(0)));
+        assert_eq!(TelegramId::new(-1), Err(DomainError::InvalidTelegramId(-1)));
     }
 
     #[test]

@@ -9,7 +9,11 @@ pub struct User {
 }
 
 impl User {
-    pub fn new(telegram_id: TelegramId, timezone: TimeZoneOffset, created_at: UtcTimestamp) -> Self {
+    pub fn new(
+        telegram_id: TelegramId,
+        timezone: TimeZoneOffset,
+        created_at: UtcTimestamp,
+    ) -> Self {
         Self {
             telegram_id,
             timezone,

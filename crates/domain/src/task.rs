@@ -145,7 +145,15 @@ mod tests {
     fn rejects_empty_title() {
         let (id, user_id, created_at) = fixture();
 
-        let result = Task::new(id, user_id, "   ", TaskStatus::Ready, None, None, created_at);
+        let result = Task::new(
+            id,
+            user_id,
+            "   ",
+            TaskStatus::Ready,
+            None,
+            None,
+            created_at,
+        );
 
         assert_eq!(result, Err(DomainError::EmptyTaskTitle));
     }
