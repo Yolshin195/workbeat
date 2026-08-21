@@ -29,8 +29,13 @@
 | `User`         | `users`                | `telegram_id`, `timezone`, `created_at` |
 | `Task`         | `tasks`                | `id`, `user_id`, `title`, `status: TaskStatus`, `priority: Option<TaskPriority>`, `deadline: Option<NaiveDate>`, `created_at` |
 | `WorkDay`      | `work_days`            | `id`, `user_id`, `started_at`, `finished_at`, `lunch_started_at`, `lunch_ended_at` |
-| `HourInterval` | `hour_intervals`       | `id`, `work_day_id`, `task_id`, `started_at`, `ended_at`, `successful_count: SuccessfulCount` |
-| `TenMinCheck`  | `ten_min_checks`       | `id`, `hour_interval_id`, `started_at`, `ended_at`, `status: CheckStatus`, `reason: Option<String>` |
+| `HourInterval` | `hour_intervals`       | `id`, `work_day_id`, `started_at`, `ended_at`, `successful_count: SuccessfulCount`, `summary: Option<String>` |
+| `TenMinCheck`  | `ten_min_checks`       | `id`, `hour_interval_id`, `task_id`, `started_at`, `ended_at`, `status: CheckStatus`, `reason: Option<String>` |
+
+`HourInterval` намеренно не хранит `task_id` — один часовой интервал может
+включать десятиминутки разных задач (правило "задача готова"), поэтому
+привязка к задаче живёт на уровне `TenMinCheck`. `HourInterval.summary` —
+ответ на обязательный вопрос "что делали за этот час".
 
 Перечисления:
 
