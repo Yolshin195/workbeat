@@ -68,20 +68,11 @@ SPEC.md раздела 6, без бизнес-логики переходов с
 - `domain` не имеет зависимостей на tokio/sqlx/teloxide в `Cargo.toml`.
 - Есть `README.md` в `domain/` с описанием сущностей.
 
-**⚠️ Ремедиация (эта задача уже реализована по устаревшей схеме):** текущий код
-`crates/domain/src/hour_interval.rs` и `ten_min_check.rs` соответствует версии
-схемы ДО ревизий SPEC.md от 2026-08-21 — `task_id` был на `HourInterval`, а
-`summary` отсутствовал. Схема была пересмотрена, потому что она делала
-физически невозможным сохранение сценария "смена задачи посередине часа"
-(Задача 2/Задача 7 тестируют его на чистых функциях, но в SQLite его негде было
-хранить). Перед началом Задачи 2 нужно:
-- убрать `task_id: TaskId` из `HourInterval`, добавить `summary: Option<String>`;
-- добавить `task_id: TaskId` и `last_reminder_at: Option<UtcTimestamp>` в
-  `TenMinCheck` (без `is_recovery` — эта сущность из системы убрана правкой
-  раздела 2 SPEC.md: молчание больше не создаёт вторую строку, см. новую
-  версию Задачи 2 ниже);
-- добавить `last_idle_prompt_at: Option<UtcTimestamp>` в `WorkDay`;
-- обновить конструкторы и существующие unit-тесты всех затронутых структур.
+**✅ Ремедиация выполнена (2026-08-21):** код `crates/domain` приведён к
+актуальной схеме SPEC.md — `task_id` и `last_reminder_at` перенесены на
+`TenMinCheck`, `HourInterval` лишился `task_id` и получил `summary`, `WorkDay`
+получил `last_idle_prompt_at`. Конструкторы и unit-тесты обновлены,
+`cargo build --workspace` и `cargo test -p domain` проходят.
 
 ---
 

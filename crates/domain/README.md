@@ -28,9 +28,16 @@
 |----------------|------------------------|------|
 | `User`         | `users`                | `telegram_id`, `timezone`, `created_at` |
 | `Task`         | `tasks`                | `id`, `user_id`, `title`, `status: TaskStatus`, `priority: Option<TaskPriority>`, `deadline: Option<NaiveDate>`, `created_at` |
-| `WorkDay`      | `work_days`            | `id`, `user_id`, `started_at`, `finished_at`, `lunch_started_at`, `lunch_ended_at` |
-| `HourInterval` | `hour_intervals`       | `id`, `work_day_id`, `task_id`, `started_at`, `ended_at`, `successful_count: SuccessfulCount` |
-| `TenMinCheck`  | `ten_min_checks`       | `id`, `hour_interval_id`, `started_at`, `ended_at`, `status: CheckStatus`, `reason: Option<String>` |
+| `WorkDay`      | `work_days`            | `id`, `user_id`, `started_at`, `finished_at`, `lunch_started_at`, `lunch_ended_at`, `last_idle_prompt_at: Option<UtcTimestamp>` |
+| `HourInterval` | `hour_intervals`       | `id`, `work_day_id`, `started_at`, `ended_at`, `successful_count: SuccessfulCount`, `summary: Option<String>` |
+| `TenMinCheck`  | `ten_min_checks`       | `id`, `hour_interval_id`, `task_id`, `started_at`, `ended_at`, `status: CheckStatus`, `reason: Option<String>`, `last_reminder_at: Option<UtcTimestamp>` |
+
+Важно: `task_id` живёт на `TenMinCheck`, а не на `HourInterval` — один часовой
+интервал может включать десятиминутки разных задач (правило "задача готова",
+корневой `README.md` раздел 3). Признака "восстановительная десятиминутка"
+(`is_recovery`) в системе нет: молчание закрывает рабочую десятиминутку сразу,
+без второй сущности — `reason` может быть дописан в уже закрытую строку
+(единственный случай изменения закрытой записи).
 
 Перечисления:
 
