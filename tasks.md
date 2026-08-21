@@ -237,6 +237,16 @@ SPEC.md раздела 6, без бизнес-логики переходов с
   `mockall` (dev-dependency), без sqlx/teloxide/tokio-runtime специфики (можно
   `tokio::time::Duration` как нейтральный тип, но не сам tokio runtime).
 
+**✅ Выполнено (2026-08-21):** порты реализованы в `crates/application/src/ports`
+(`UserRepository`, `TaskRepository`, `WorkDayRepository`, `HourIntervalRepository`,
+`TenMinCheckRepository`, `Clock`, `Notifier` + `OutboundMessage`), ошибки —
+типизированные (`RepoError`, `NotifierError`, `thiserror`). Ручные in-memory
+фейки для всех портов — в `crates/application/src/testing.rs` (под
+`#[cfg(test)]`), там же юнит-тесты на каждый фейк (`cargo test -p application`,
+7 тестов). `application` зависит только от `domain`, `async-trait`, `thiserror`
+(+ `mockall`/`chrono`/`pollster` как dev-dependencies); `cargo build --workspace`
+и `cargo clippy -p application --all-targets` проходят чисто.
+
 ---
 
 ## Задача 4. SQLite-адаптер: миграции и репозитории
