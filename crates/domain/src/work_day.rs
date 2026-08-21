@@ -10,9 +10,11 @@ pub struct WorkDay {
     finished_at: Option<UtcTimestamp>,
     lunch_started_at: Option<UtcTimestamp>,
     lunch_ended_at: Option<UtcTimestamp>,
+    last_idle_prompt_at: Option<UtcTimestamp>,
 }
 
 impl WorkDay {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         id: WorkDayId,
         user_id: TelegramId,
@@ -20,6 +22,7 @@ impl WorkDay {
         finished_at: Option<UtcTimestamp>,
         lunch_started_at: Option<UtcTimestamp>,
         lunch_ended_at: Option<UtcTimestamp>,
+        last_idle_prompt_at: Option<UtcTimestamp>,
     ) -> Self {
         Self {
             id,
@@ -28,6 +31,7 @@ impl WorkDay {
             finished_at,
             lunch_started_at,
             lunch_ended_at,
+            last_idle_prompt_at,
         }
     }
 
@@ -54,6 +58,10 @@ impl WorkDay {
     pub fn lunch_ended_at(&self) -> Option<UtcTimestamp> {
         self.lunch_ended_at
     }
+
+    pub fn last_idle_prompt_at(&self) -> Option<UtcTimestamp> {
+        self.last_idle_prompt_at
+    }
 }
 
 #[cfg(test)]
@@ -70,10 +78,29 @@ mod tests {
             None,
             None,
             None,
+            None,
         );
 
         assert_eq!(work_day.finished_at(), None);
         assert_eq!(work_day.lunch_started_at(), None);
         assert_eq!(work_day.lunch_ended_at(), None);
+        assert_eq!(work_day.last_idle_prompt_at(), None);
+    }
+
+    #[test]
+    fn constructs_work_day_with_last_idle_prompt_at() {
+        let last_idle_prompt_at = UtcTimestamp::new(Utc::now());
+
+        let work_day = WorkDay::new(
+            WorkDayId::new(1),
+            TelegramId::new(123).unwrap(),
+            UtcTimestamp::new(Utc::now()),
+            None,
+            None,
+            None,
+            Some(last_idle_prompt_at),
+        );
+
+        assert_eq!(work_day.last_idle_prompt_at(), Some(last_idle_prompt_at));
     }
 }
