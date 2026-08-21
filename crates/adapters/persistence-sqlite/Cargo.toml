@@ -1,0 +1,8 @@
+[package]
+name = "adapters-persistence-sqlite"
+edition.workspace = true
+version.workspace = true
+
+[dependencies]
+domain = { path = "../../domain" }
+application = { path = "../../application" }

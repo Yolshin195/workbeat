@@ -1,0 +1,15 @@
+[package]
+name = "app"
+edition.workspace = true
+version.workspace = true
+
+[[bin]]
+name = "workbeat"
+path = "src/main.rs"
+
+[dependencies]
+domain = { path = "../../domain" }
+application = { path = "../../application" }
+adapters-persistence-sqlite = { path = "../../adapters/persistence-sqlite" }
+adapters-scheduler-tokio = { path = "../../adapters/scheduler-tokio" }
+adapters-telegram = { path = "../../adapters/telegram" }
