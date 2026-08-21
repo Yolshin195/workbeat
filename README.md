@@ -24,6 +24,16 @@
 - Обед: кнопки "пошёл на обед" / "вернулся" — фиксируют start/end. Обеденное время
   **не входит** в 8-часовой рабочий день, хранится отдельным полем.
 - День завершается командой `/finish_day`.
+- Если день начат (`/start_day`), но активного часового интервала нет (ещё не
+  выбрали первую задачу и не нажали "начать интервал", пауза между интервалами,
+  после обеда и т.п.) — бот периодически (раз в N часов простоя) спрашивает
+  "Готовы продолжить работу?", пока пользователь не начнёт следующий интервал
+  или не завершит день (`/finish_day`). Автоматического завершения дня по
+  таймауту нет — день остаётся открытым, пока пользователь сам не вызовет
+  `/finish_day`.
+- Интенсивный опрос "молчания" (см. раздел 2, ежеминутные напоминания) действует
+  **только внутри активного часового интервала** — вне интервала используется
+  более редкий периодический опрос выше.
 
 ## 2. Логика десятиминутки (внутри часового интервала)
 
@@ -60,6 +70,9 @@
 - **Время задачи = сумма только успешных десятиминуток** (10 мин каждая),
   просуммированных по всем интервалам, где эта задача была активна.
   Отдых добавляется к задаче только за те интервалы, где было 5/5.
+- У задачи есть необязательные приоритет (например, high / medium / low) и
+  дедлайн (дата). Используются для сортировки/фильтрации пула задач при выборе
+  следующей задачи.
 
 ## 4. Хранение времени
 
@@ -77,6 +90,8 @@
 - Содержание отчёта: суммарное отработанное время, по задачам (сколько минут на
   каждую), провальные десятиминутки и причины (для анализа продуктивности),
   время обеда, факт выполнения нормы 8 часов.
+- Отчёты доступны не только за день, но и за неделю/месяц (например,
+  `/report_week`, `/report_month` или параметр периода в `/report`).
 
 ## 6. Схема БД (SQLite)
 
@@ -84,7 +99,7 @@
 users (
     telegram_id     INTEGER PRIMARY KEY,
     timezone        TEXT DEFAULT 'UTC',
-    created_at      TEXT
+    created_at      DATETIME
 );
 
 tasks (
@@ -92,32 +107,34 @@ tasks (
     user_id         INTEGER REFERENCES users(telegram_id),
     title           TEXT,
     status          TEXT,      -- ready / not_ready / in_progress / done
-    created_at      TEXT
+    priority        TEXT,      -- high / medium / low, NULL если не задан
+    deadline        DATE,      -- NULL если не задан
+    created_at      DATETIME
 );
 
 work_days (
     id              INTEGER PRIMARY KEY,
     user_id         INTEGER REFERENCES users(telegram_id),
-    started_at      TEXT,
-    finished_at     TEXT,
-    lunch_started_at TEXT,
-    lunch_ended_at   TEXT
+    started_at      DATETIME,
+    finished_at     DATETIME,
+    lunch_started_at DATETIME,
+    lunch_ended_at   DATETIME
 );
 
 hour_intervals (
     id              INTEGER PRIMARY KEY,
     work_day_id     INTEGER REFERENCES work_days(id),
     task_id         INTEGER REFERENCES tasks(id),
-    started_at      TEXT,
-    ended_at        TEXT,
+    started_at      DATETIME,
+    ended_at        DATETIME,
     successful_count INTEGER   -- 0..5, сколько десятиминуток из 5 успешны
 );
 
 ten_min_checks (
     id              INTEGER PRIMARY KEY,
     hour_interval_id INTEGER REFERENCES hour_intervals(id),
-    started_at      TEXT,
-    ended_at        TEXT,
+    started_at      DATETIME,
+    ended_at        DATETIME,
     status          TEXT,      -- worked / failed / no_response
     reason          TEXT       -- заполняется если failed / no_response
 );
@@ -125,10 +142,5 @@ ten_min_checks (
 
 ## 7. Открытые вопросы / на будущее (не блокируют MVP)
 
-- Что происходит, если пользователь не отвечает вообще весь день (нужен ли
-  таймаут на весь день, авто-`/finish_day`)?
-- Нужны ли напоминания через N часов бездействия между `/start_day` и первым
-  интервалом?
-- Нужна ли статистика по неделе/месяцу, а не только по дню?
-- Нужен ли редактор задач с приоритетами/дедлайнами, или простой пул достаточно
-  для MVP?
+- Точное значение N (через сколько часов простоя бот присылает "Готовы
+  продолжить работу?") — вынести в конфиг, требует уточнения.
