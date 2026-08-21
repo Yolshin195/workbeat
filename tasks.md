@@ -288,6 +288,25 @@ SPEC.md раздела 6, без бизнес-логики переходов с
   внешних сервисов.
 - Файл БД создаётся по пути из конфига, схема соответствует SPEC.md.
 
+**✅ Выполнено (2026-08-21):** миграции — в
+`crates/adapters/persistence-sqlite/migrations/0001_initial.sql`, ровно по
+схеме README.md п.6 (`task_id`/`last_reminder_at` на `ten_min_checks`,
+`hour_intervals.summary`, `work_days.last_idle_prompt_at`, nullable
+`priority`/`deadline`, `DATE`/`DATETIME` типы), плюс индексы по
+`user_id`/`work_day_id`/`hour_interval_id`/`task_id`, частичные индексы на
+`ended_at IS NULL`/`finished_at IS NULL` и отдельный индекс под
+`find_awaiting_resume()`. Все пять `*Repository` из Задачи 3 реализованы в
+`crates/adapters/persistence-sqlite/src` поверх `sqlx` (runtime-миграции через
+`sqlx::migrate!`, без `sqlx::query!`/офлайн-режима — сборка не требует
+подключения к БД). Маппинг enum ↔ TEXT — явные функции в `src/enums.rs`, без
+magic strings в репозиториях. `connect()` включает WAL и `busy_timeout(5s)`.
+18 интеграционных тестов на временной SQLite БД (in-memory для
+create→read→update round-trip каждого репозитория, tempfile — для теста
+"миграции применяются с нуля" и теста конкурентного доступа: 2 параллельные
+tokio-задачи пишут в разные таблицы без ошибок). `cargo test -p
+adapters-persistence-sqlite`, `cargo build --workspace` и `cargo clippy -p
+adapters-persistence-sqlite --all-targets` проходят чисто.
+
 ---
 
 ## Задача 5. Application: use cases регистрации и старта дня

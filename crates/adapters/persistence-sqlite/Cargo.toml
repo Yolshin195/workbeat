@@ -6,3 +6,17 @@ version.workspace = true
 [dependencies]
 domain = { path = "../../domain" }
 application = { path = "../../application" }
+async-trait = "0.1"
+thiserror = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+sqlx = { version = "0.7", default-features = false, features = [
+    "sqlite",
+    "runtime-tokio",
+    "tls-rustls",
+    "chrono",
+    "migrate",
+    "macros",
+] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
