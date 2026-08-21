@@ -1,0 +1,14 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/domain",
+    "crates/application",
+    "crates/adapters/persistence-sqlite",
+    "crates/adapters/scheduler-tokio",
+    "crates/adapters/telegram",
+    "crates/bin/app",
+]
+
+[workspace.package]
+edition = "2021"
+version = "0.1.0"
