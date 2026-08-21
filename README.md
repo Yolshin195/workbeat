@@ -84,7 +84,7 @@
 users (
     telegram_id     INTEGER PRIMARY KEY,
     timezone        TEXT DEFAULT 'UTC',
-    created_at      TEXT
+    created_at      DATETIME
 );
 
 tasks (
@@ -92,32 +92,32 @@ tasks (
     user_id         INTEGER REFERENCES users(telegram_id),
     title           TEXT,
     status          TEXT,      -- ready / not_ready / in_progress / done
-    created_at      TEXT
+    created_at      DATETIME
 );
 
 work_days (
     id              INTEGER PRIMARY KEY,
     user_id         INTEGER REFERENCES users(telegram_id),
-    started_at      TEXT,
-    finished_at     TEXT,
-    lunch_started_at TEXT,
-    lunch_ended_at   TEXT
+    started_at      DATETIME,
+    finished_at     DATETIME,
+    lunch_started_at DATETIME,
+    lunch_ended_at   DATETIME
 );
 
 hour_intervals (
     id              INTEGER PRIMARY KEY,
     work_day_id     INTEGER REFERENCES work_days(id),
     task_id         INTEGER REFERENCES tasks(id),
-    started_at      TEXT,
-    ended_at        TEXT,
+    started_at      DATETIME,
+    ended_at        DATETIME,
     successful_count INTEGER   -- 0..5, сколько десятиминуток из 5 успешны
 );
 
 ten_min_checks (
     id              INTEGER PRIMARY KEY,
     hour_interval_id INTEGER REFERENCES hour_intervals(id),
-    started_at      TEXT,
-    ended_at        TEXT,
+    started_at      DATETIME,
+    ended_at        DATETIME,
     status          TEXT,      -- worked / failed / no_response
     reason          TEXT       -- заполняется если failed / no_response
 );
