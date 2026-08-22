@@ -1,0 +1,23 @@
+name: Security Audit
+
+on:
+  push:
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  schedule:
+    # Запуск каждую ночь в 00:00 (чтобы находить свежие уязвимости в старом коде)
+    - cron: '0 0 * * *'
+  workflow_dispatch:
+
+jobs:
+  security_audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Cargo Audit
+        uses: actions-rust-lang/audit@v1
+        with:
+          # Завершать работу с ошибкой, если найдены предупреждения
+          denyWarnings: true
