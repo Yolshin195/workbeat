@@ -11,6 +11,7 @@ mod idle_prompt_config;
 mod outbound_message;
 mod ports;
 mod reminder_schedule_config;
+mod report_dto;
 mod use_cases;
 
 #[cfg(test)]
@@ -24,14 +25,19 @@ pub use ports::{
     WorkDayRepository,
 };
 pub use reminder_schedule_config::ReminderScheduleConfig;
+pub use report_dto::{
+    DayReportInfo, FailedCheckEntry, Period, PeriodReportInfo, ReportDto, TaskTimeEntry,
+};
 pub use use_cases::{
-    AdvanceOpenTenMinChecks, AdvanceOpenTenMinChecksError, ConfirmReadyToContinue,
+    AdvanceOpenTenMinChecks, AdvanceOpenTenMinChecksError, BuildDayReport, BuildDayReportError,
+    BuildPeriodReport, BuildPeriodReportError, ConfirmReadyToContinue,
     ConfirmReadyToContinueError, CreateTask, CreateTaskError, EndLunch, EndLunchError,
-    FinishHourInterval, FinishHourIntervalError, FinishWorkDay, FinishWorkDayError,
-    ListAvailableTasks, MarkReturnedFromRest, MarkReturnedFromRestError, MarkTaskDone,
-    MarkTaskInProgress, PromptContinueIfIdle, PromptContinueIfIdleError, RegisterUserIfNotExists,
-    RemindAwaitingResume, RemindAwaitingResumeError, StartHourInterval, StartHourIntervalError,
-    StartLunch, StartLunchError, StartWorkDay, StartWorkDayError, SubmitFailureReason,
+    ExportDayReportCsv, ExportDayReportCsvError, FinishHourInterval, FinishHourIntervalError,
+    FinishWorkDay, FinishWorkDayError, ListAvailableTasks, MarkReturnedFromRest,
+    MarkReturnedFromRestError, MarkTaskDone, MarkTaskInProgress, PromptContinueIfIdle,
+    PromptContinueIfIdleError, RegisterUserIfNotExists, RemindAwaitingResume,
+    RemindAwaitingResumeError, StartHourInterval, StartHourIntervalError, StartLunch,
+    StartLunchError, StartWorkDay, StartWorkDayError, SubmitFailureReason,
     SubmitFailureReasonError, SubmitTenMinAnswer, SubmitTenMinAnswerError,
     SuggestLunchAfterNthInterval, SuggestLunchAfterNthIntervalError, SwitchTaskMidInterval,
     SwitchTaskMidIntervalError, TaskFilter, UpdateTask, UpdateTaskError, WorkDayFinishSummary,

@@ -5,9 +5,12 @@
 //! cases не импортируют ничего из `adapters/*` и не содержат SQL/Telegram-типов.
 
 mod advance_open_ten_min_checks;
+mod build_day_report;
+mod build_period_report;
 mod confirm_ready_to_continue;
 mod create_task;
 mod end_lunch;
+mod export_day_report_csv;
 mod finish_hour_interval;
 mod finish_work_day;
 mod list_available_tasks;
@@ -33,9 +36,12 @@ mod hour_interval_scenario_tests;
 mod work_day_finish_scenario_tests;
 
 pub use advance_open_ten_min_checks::{AdvanceOpenTenMinChecks, AdvanceOpenTenMinChecksError};
+pub use build_day_report::{BuildDayReport, BuildDayReportError};
+pub use build_period_report::{BuildPeriodReport, BuildPeriodReportError};
 pub use confirm_ready_to_continue::{ConfirmReadyToContinue, ConfirmReadyToContinueError};
 pub use create_task::{CreateTask, CreateTaskError};
 pub use end_lunch::{EndLunch, EndLunchError};
+pub use export_day_report_csv::{ExportDayReportCsv, ExportDayReportCsvError};
 pub use finish_hour_interval::{FinishHourInterval, FinishHourIntervalError};
 pub use finish_work_day::{FinishWorkDay, FinishWorkDayError, WorkDayFinishSummary};
 pub use list_available_tasks::{ListAvailableTasks, TaskFilter};

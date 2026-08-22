@@ -718,6 +718,33 @@ use cases, а не только в тестах). `cargo test -p application` (2
 - `BuildPeriodReport` корректно работает на границах периода (первый/последний
   день недели или месяца, разные часовые пояса пользователя).
 
+**✅ Выполнено (2026-08-22):** `ReportDto`/`Period`/`TaskTimeEntry`/
+`FailedCheckEntry`/`DayReportInfo`/`PeriodReportInfo` — в
+`crates/application/src/report_dto.rs` (не привязаны к формату вывода;
+`ReportDto::to_text()` — общий текстовый рендер для дневного и
+периодического отчёта). `BuildDayReport`, `BuildPeriodReport`,
+`ExportDayReportCsv` реализованы в `crates/application/src/use_cases`.
+`BuildDayReport` переиспользует `classify_checks` из `support.rs`: время по
+задачам и провальные десятиминутки берутся только из уже закрытых слотов
+каждого интервала (в том числе ещё не завершённого — его самого при этом не
+засчитывает в `closed_intervals`/норму 8ч), заголовки задач подтягиваются
+через `TaskRepository`. `ExportDayReportCsv` переиспользует ту же приватную
+`build_day_report_dto(...)` (без дублирования логики) и сериализует
+`ReportDto` в CSV вручную (RFC4180-экранирование, `\r\n`, UTF-8 BOM для
+Excel) — без добавления зависимости на `csv`-крейт. `BuildPeriodReport`
+считает границы периода (неделя — пн..вс, месяц — календарный) по
+локальной дате (`work_days.started_at` + `users.timezone`), а не по UTC;
+при отсутствии `at` "сегодня" вычисляется внутри use case как
+`Clock.now()` в таймзоне пользователя. Тесты: golden-тест дневного отчёта
+(текст и `ReportDto`) со смешанными Worked/Failed/rest и открытым вторым
+интервалом; golden-тест CSV; тест границ периода (дни вне недели не
+попадают в сумму); тест `at = None` для пользователя в `UTC+7`, когда
+`Clock.now()` в UTC ещё "вчера", а локально уже другая неделя — период
+считается по локальной дате. `cargo test -p application` (90 тестов,
+включая 10 новых для отчётов), `cargo test --workspace`,
+`cargo build --workspace` и `cargo clippy --workspace --all-targets`
+проходят чисто.
+
 ---
 
 ## Задача 10. Poll-цикл на tokio
