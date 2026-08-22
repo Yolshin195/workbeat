@@ -1,13 +1,15 @@
-//! Слой use cases и портов (traits). Эта задача (Задача 3, см. корневой
-//! `tasks.md`) описывает только порты — интерфейсы, через которые будущие
-//! use cases (Задачи 5-9) будут общаться с внешним миром. Реализаций-адаптеров
-//! здесь нет и быть не должно: `application` собирается, имея в зависимостях
-//! только `domain`, `async-trait` и `thiserror` — никакого sqlx/teloxide/
-//! tokio-runtime.
+//! Слой use cases и портов (traits) — см. корневой `tasks.md`. Порты (Задача
+//! 3) — интерфейсы, через которые use cases общаются с внешним миром;
+//! реализации-адаптеры (SQLite, Telegram, tokio-poll) живут в других крейтах
+//! и здесь не появляются. Use cases (начиная с Задачи 5) получают нужные
+//! порты через конструктор и не импортируют ничего из `adapters/*`.
+//! `application` собирается, имея в зависимостях только `domain`,
+//! `async-trait` и `thiserror` — никакого sqlx/teloxide/tokio-runtime.
 
 mod error;
 mod outbound_message;
 mod ports;
+mod use_cases;
 
 #[cfg(test)]
 pub mod testing;
@@ -18,3 +20,4 @@ pub use ports::{
     Clock, HourIntervalRepository, Notifier, TaskRepository, TenMinCheckRepository,
     UserRepository, WorkDayRepository,
 };
+pub use use_cases::{RegisterUserIfNotExists, StartWorkDay, StartWorkDayError};

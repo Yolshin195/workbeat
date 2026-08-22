@@ -334,6 +334,21 @@ adapters-persistence-sqlite --all-targets` проходят чисто.
 - Все ошибки — типизированные (`thiserror`), не `anyhow::Error` наружу из
   application (можно внутри адаптеров).
 
+**✅ Выполнено (2026-08-22):** `RegisterUserIfNotExists` и `StartWorkDay`
+реализованы в `crates/application/src/use_cases` — каждый как отдельная
+структура с `execute()`, порты получает через конструктор (`Arc<dyn Trait>`).
+`RegisterUserIfNotExists` идемпотентен: при повторном вызове с тем же
+`telegram_id` возвращает уже существующего пользователя, не создавая
+дубликат; новому пользователю проставляется `TimeZoneOffset::default()`
+(UTC) и `created_at = Clock.now()`. `StartWorkDay` проверяет
+`WorkDayRepository::find_open_by_user` и возвращает типизированную ошибку
+`StartWorkDayError::AlreadyOpen` (без паники), если день уже открыт; иначе
+создаёт `WorkDay` с `started_at = Clock.now()`. Юнит-тесты — на фейках из
+`testing.rs` (Задача 3): happy path и обе edge-cases (повторная регистрация,
+повторный `/start_day`). `cargo test -p application` (11 тестов),
+`cargo build --workspace` и `cargo clippy -p application --all-targets`
+проходят чисто.
+
 ---
 
 ## Задача 6. Application: use cases управления задачами
