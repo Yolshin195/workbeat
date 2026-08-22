@@ -281,7 +281,7 @@ fn silence_then_late_response_appends_reason_and_confirm_starts_fresh_slot() {
         world.clock.advance(chrono::Duration::minutes(3));
         let with_reason = world
             .submit_failure_reason()
-            .execute(closed.id(), "was in a meeting".to_string())
+            .execute(interval.id(), "was in a meeting".to_string())
             .await
             .unwrap();
         assert_eq!(with_reason.reason(), Some("was in a meeting"));

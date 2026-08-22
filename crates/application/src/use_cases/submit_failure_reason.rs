@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use domain::{append_reason_to_no_response, DomainError, TenMinCheck, TenMinCheckId};
+use domain::{append_reason_to_no_response, DomainError, HourIntervalId, TenMinCheck};
 use thiserror::Error;
 
 use crate::error::RepoError;
@@ -21,6 +21,16 @@ pub enum SubmitFailureReasonError {
 /// пользователь наконец откликнулся и объяснил, что случилось. Не меняет
 /// `ended_at`/`status` — единственный use case, разрешающий изменение уже
 /// закрытой `TenMinCheck`.
+///
+/// Принимает `interval_id`, а не `check_id` конкретной десятиминутки:
+/// вызывающая сторона (Telegram-адаптер) в сценарии "тишина" никогда не
+/// узнаёт `check_id` десятиминутки, которую молча закрыл `PollLoop`
+/// (`AdvanceOpenTenMinChecks`, Задача 7/10) — она создаётся и закрывается
+/// целиком внутри опроса, без какого-либо вызова из адаптера, которому
+/// можно было бы вернуть id. Разрешение "какая именно строка имеется в
+/// виду" — последняя по времени десятиминутка интервала — поэтому сделано
+/// здесь, тем же способом, что уже использует `ConfirmReadyToContinue`
+/// (`find_last_by_interval`), а не переложено на вызывающую сторону.
 pub struct SubmitFailureReason {
     ten_min_check_repository: Arc<dyn TenMinCheckRepository>,
 }
@@ -34,15 +44,19 @@ impl SubmitFailureReason {
 
     pub async fn execute(
         &self,
-        check_id: TenMinCheckId,
+        interval_id: HourIntervalId,
         reason: String,
     ) -> Result<TenMinCheck, SubmitFailureReasonError> {
         let check = self
             .ten_min_check_repository
-            .find_by_id(check_id)
+            .find_last_by_interval(interval_id)
             .await?
             .ok_or(RepoError::NotFound)?;
 
+        // Если последняя десятиминутка интервала ещё открыта, у неё
+        // плейсхолдер-статус (см. `StartHourInterval`) — `append_reason_to_no_response`
+        // и в этом случае корректно отклонит попытку как
+        // `ReasonNotAllowedForStatus`, ничего отдельно проверять не нужно.
         append_reason_to_no_response(check.status(), check.reason())?;
 
         let updated = TenMinCheck::new(
@@ -68,16 +82,19 @@ mod tests {
     use super::*;
     use crate::testing::InMemoryTenMinCheckRepository;
     use chrono::Utc;
-    use domain::{CheckStatus, HourIntervalId, TaskId, UtcTimestamp};
+    use domain::{CheckStatus, TaskId, TenMinCheckId, UtcTimestamp};
 
     fn now() -> UtcTimestamp {
         UtcTimestamp::new(Utc::now())
     }
 
-    async fn seed_no_response_check(repo: &InMemoryTenMinCheckRepository) -> TenMinCheck {
+    async fn seed_no_response_check(
+        repo: &InMemoryTenMinCheckRepository,
+        interval_id: HourIntervalId,
+    ) -> TenMinCheck {
         let draft = TenMinCheck::new(
             TenMinCheckId::new(0),
-            HourIntervalId::new(1),
+            interval_id,
             TaskId::new(1),
             now(),
             Some(now()),
@@ -92,14 +109,16 @@ mod tests {
     fn appends_reason_without_touching_ended_at_or_status() {
         pollster::block_on(async {
             let repo = Arc::new(InMemoryTenMinCheckRepository::new());
-            let check = seed_no_response_check(&repo).await;
+            let interval_id = HourIntervalId::new(1);
+            let check = seed_no_response_check(&repo, interval_id).await;
             let use_case = SubmitFailureReason::new(repo.clone());
 
             let updated = use_case
-                .execute(check.id(), "was in a meeting".to_string())
+                .execute(interval_id, "was in a meeting".to_string())
                 .await
                 .unwrap();
 
+            assert_eq!(updated.id(), check.id());
             assert_eq!(updated.reason(), Some("was in a meeting"));
             assert_eq!(updated.ended_at(), check.ended_at());
             assert_eq!(updated.status(), CheckStatus::NoResponse);
@@ -110,15 +129,16 @@ mod tests {
     fn rejects_when_reason_already_set() {
         pollster::block_on(async {
             let repo = Arc::new(InMemoryTenMinCheckRepository::new());
-            let check = seed_no_response_check(&repo).await;
+            let interval_id = HourIntervalId::new(1);
+            seed_no_response_check(&repo, interval_id).await;
             let use_case = SubmitFailureReason::new(repo.clone());
 
             use_case
-                .execute(check.id(), "was in a meeting".to_string())
+                .execute(interval_id, "was in a meeting".to_string())
                 .await
                 .unwrap();
             let error = use_case
-                .execute(check.id(), "another reason".to_string())
+                .execute(interval_id, "another reason".to_string())
                 .await
                 .unwrap_err();
 
@@ -133,9 +153,10 @@ mod tests {
     fn rejects_when_status_is_not_no_response() {
         pollster::block_on(async {
             let repo = Arc::new(InMemoryTenMinCheckRepository::new());
+            let interval_id = HourIntervalId::new(1);
             let draft = TenMinCheck::new(
                 TenMinCheckId::new(0),
-                HourIntervalId::new(1),
+                interval_id,
                 TaskId::new(1),
                 now(),
                 Some(now()),
@@ -143,11 +164,11 @@ mod tests {
                 Some("distracted".to_string()),
                 None,
             );
-            let check = repo.create(draft).await.unwrap();
+            repo.create(draft).await.unwrap();
             let use_case = SubmitFailureReason::new(repo.clone());
 
             let error = use_case
-                .execute(check.id(), "another reason".to_string())
+                .execute(interval_id, "another reason".to_string())
                 .await
                 .unwrap_err();
 
@@ -159,13 +180,46 @@ mod tests {
     }
 
     #[test]
-    fn errors_when_check_not_found() {
+    fn rejects_when_last_check_of_interval_is_still_open() {
+        pollster::block_on(async {
+            let repo = Arc::new(InMemoryTenMinCheckRepository::new());
+            let interval_id = HourIntervalId::new(1);
+            // Открытая десятиминутка — например, пользователь уже
+            // подтвердил "готов продолжить" и новый слот идёт полным ходом;
+            // объяснять здесь нечего.
+            let draft = TenMinCheck::new(
+                TenMinCheckId::new(0),
+                interval_id,
+                TaskId::new(1),
+                now(),
+                None,
+                CheckStatus::Worked,
+                None,
+                None,
+            );
+            repo.create(draft).await.unwrap();
+            let use_case = SubmitFailureReason::new(repo.clone());
+
+            let error = use_case
+                .execute(interval_id, "reason".to_string())
+                .await
+                .unwrap_err();
+
+            assert_eq!(
+                error,
+                SubmitFailureReasonError::Domain(DomainError::ReasonNotAllowedForStatus)
+            );
+        });
+    }
+
+    #[test]
+    fn errors_when_interval_has_no_checks_at_all() {
         pollster::block_on(async {
             let repo = Arc::new(InMemoryTenMinCheckRepository::new());
             let use_case = SubmitFailureReason::new(repo);
 
             let error = use_case
-                .execute(TenMinCheckId::new(999), "reason".to_string())
+                .execute(HourIntervalId::new(999), "reason".to_string())
                 .await
                 .unwrap_err();
 
