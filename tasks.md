@@ -387,6 +387,30 @@ adapters-persistence-sqlite --all-targets` проходят чисто.
 - В Задаче 11 нет ни одного прямого вызова `TaskRepository` — только через use
   cases этой задачи.
 
+**✅ Выполнено (2026-08-22, уточнено с автором задачи):** `CreateTask`,
+`UpdateTask`, `ListAvailableTasks`, `MarkTaskInProgress`, `MarkTaskDone`
+реализованы в `crates/application/src/use_cases`. По итогам уточнения у
+автора: `CreateTask` всегда создаёт задачу в статусе `Ready` (без отдельного
+параметра статуса); `UpdateTask` принимает `status: Option<domain::TaskStatus>`
+и разрешает вручную выставлять `Ready`/`NotReady`/`Done` (пользователь может,
+например, сам отменить неактуальную задачу как `Done` в обход интервала) —
+запрещён только `InProgress` (типизированная ошибка
+`UpdateTaskError::InProgressNotAllowed`), так как он выставляется исключительно
+стартом часового интервала. `priority`/`deadline` в `UpdateTask` —
+`Option<Option<_>>` (внешний `None` — не менять, `Some(None)` — очистить,
+`Some(Some(v))` — установить). `ListAvailableTasks` фильтрует
+(`Ready`/`NotReady`/`All`) и сортирует по приоритету (high → medium → low →
+без приоритета), затем по дедлайну (раньше — выше, без дедлайна — в конце).
+`MarkTaskInProgress`/`MarkTaskDone` — внутренние use cases для Задачи 7,
+переиспользуют существующий `RepoError::NotFound` вместо отдельного типа
+ошибки. Юнит-тесты (15 новых поверх прежних 11, включая табличный тест
+сортировки и тест на частичное обновление/очистку полей) — на фейках из
+`testing.rs`. `chrono`
+перенесён из dev- в обычные зависимости `application` (нужен в сигнатурах
+use cases, а не только в тестах). `cargo test -p application` (26 тестов),
+`cargo build --workspace` и `cargo clippy --workspace --all-targets` проходят
+чисто.
+
 ---
 
 ## Задача 7. Application: use cases часового интервала и десятиминуток

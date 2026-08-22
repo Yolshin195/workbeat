@@ -17,7 +17,11 @@ pub mod testing;
 pub use error::{NotifierError, RepoError};
 pub use outbound_message::OutboundMessage;
 pub use ports::{
-    Clock, HourIntervalRepository, Notifier, TaskRepository, TenMinCheckRepository,
-    UserRepository, WorkDayRepository,
+    Clock, HourIntervalRepository, Notifier, TaskRepository, TenMinCheckRepository, UserRepository,
+    WorkDayRepository,
 };
-pub use use_cases::{RegisterUserIfNotExists, StartWorkDay, StartWorkDayError};
+pub use use_cases::{
+    CreateTask, CreateTaskError, ListAvailableTasks, MarkTaskDone, MarkTaskInProgress,
+    RegisterUserIfNotExists, StartWorkDay, StartWorkDayError, TaskFilter, UpdateTask,
+    UpdateTaskError,
+};

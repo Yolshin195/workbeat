@@ -6,9 +6,9 @@ version.workspace = true
 [dependencies]
 domain = { path = "../domain" }
 async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 thiserror = "1"
 
 [dev-dependencies]
-chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
 mockall = "0.13"
 pollster = "0.3"
