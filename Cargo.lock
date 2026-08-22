@@ -93,7 +93,14 @@ dependencies = [
  "adapters-scheduler-tokio",
  "adapters-telegram",
  "application",
+ "async-trait",
+ "chrono",
  "domain",
+ "dotenvy",
+ "sqlx",
+ "teloxide",
+ "thiserror",
+ "tokio",
 ]
 
 [[package]]

@@ -1028,6 +1028,60 @@ teloxide (`RequestError`) маппятся в типизированную `Noti
 - Нет `unwrap()`/`expect()` на пользовательском вводе или сетевых вызовах вне
   явно задокументированных мест инициализации.
 
+**✅ Выполнено (2026-08-22):** `crates/bin/app` разделён на библиотеку
+(`src/lib.rs`) и тонкий бинарь (`src/main.rs`), чтобы интеграционные тесты
+могли собрать то же дерево зависимостей без реального Telegram-бота.
+`src/config.rs` — `Config::from_env()` читает `DATABASE_URL`,
+`TELEGRAM_BOT_TOKEN` (обязательные, иначе типизированная
+`ConfigError::Missing`, без паники) и опциональные
+`POLL_INTERVAL_SECS`/`IDLE_PROMPT_THRESHOLD_HOURS`/
+`REMINDER_BURST_WINDOW_MINUTES`/`REMINDER_BURST_INTERVAL_MINUTES`/
+`REMINDER_STEADY_INTERVAL_MINUTES` (дефолты — `IdlePromptConfig`/
+`ReminderScheduleConfig::default()` из Задачи 2/7); `.env` подхватывается
+через `dotenvy::dotenv()` в `run()`, сама `Config::from_env()` работает
+только с переменными окружения процесса (без файловой системы — тестируема
+напрямую). Шаблон — `.env.example` в корне репозитория, `.env`/файлы
+SQLite добавлены в `.gitignore`. `src/clock.rs` — `SystemClock`, первая
+продовая реализация порта `Clock` (`chrono::Utc::now()`) — раньше её не
+было ни в одном крейте, только фейки в тестах. `src/wiring.rs` — `wire()`,
+явная сборка: пять `Sqlite*Repository` из Задачи 4 поверх переданного
+`SqlitePool`, `MarkTaskInProgress`/`MarkTaskDone` (Задача 6), затем 18 use
+cases Задач 5–9 в конструкторы которых они передаются как `Arc<dyn Trait>`,
+итог — `Arc<adapters_telegram::UseCases>` (Задача 11) и `PollLoop` (Задача
+10) с настроенным `poll_interval`; `Adapters`/`Wired` — публичные структуры,
+переиспользуемые тестами. `run()` в `lib.rs` создаёт `teloxide::Bot`,
+`SystemClock`, `TeloxideNotifier` (Задача 12), вызывает `wire(...)`,
+запускает `PollLoop::run()` фоновой `tokio::spawn`-задачей параллельно с
+`adapters_telegram::run(bot, ...)` (у него уже включён
+`enable_ctrlc_handler` из Задачи 11 — Ctrl+C останавливает диспетчер,
+`run()` возвращается, после чего `poll_handle.abort()` и `pool.close()`
+завершают работу). Все ошибки инициализации — типизированный `RunError`
+(`thiserror`, оборачивает `ConfigError`/`sqlx::Error`); `unwrap()`/`expect()`
+в продовом коде крейта нет вовсе (только в `#[cfg(test)]`).
+
+Тесты: 6 юнит-тестов `Config::from_env()` в `config.rs` (отсутствие каждой
+обязательной переменной — понятная типизированная ошибка, не паника;
+дефолты; переопределение опциональных переменных; невалидное/нулевое
+значение — тоже понятная ошибка) — сериализованы через `Mutex`, так как
+`std::env` — общее состояние процесса. Интеграционный тест restart-safety —
+`tests/restart_safety.rs`, tempfile SQLite, без `application::testing`
+(он `#[cfg(test)]` внутри своего крейта и недоступен отсюда как обычная
+зависимость): напрямую через `Sqlite*Repository` создаётся пользователь,
+задача, открытый `work_day`, открытый `HourInterval` и открытая
+`TenMinCheck` с `started_at` на 20 минут раньше фиксированного `now`
+(эмулирует "процесс уже работал и упал"); затем `wire(...)` собирается с
+нуля (как при реальном рестарте) поверх той же БД с фейковым `Notifier` —
+первый тик `PollLoop` корректно шлёт "Ты работаешь?" и проставляет
+`last_reminder_at`, без единой строчки кода восстановления. Второй тест
+эмулирует ещё и сам рестарт: независимый `PollLoop` "после падения"
+корректно резолвит `NoResponse` на десятиминутке, о которой знает только
+БД — ни один из двух собранных с нуля `PollLoop` не хранит между собой
+никакого общего состояния в памяти. `cargo test -p app` (2 unit + 6 config +
+2 integration), `cargo test --workspace` (207 тестов по всем крейтам),
+`cargo build --workspace`, `cargo clippy --workspace --all-targets` и
+`cargo run -p app` без `.env`/переменных окружения (понятная ошибка,
+ненулевой код выхода) проходят чисто.
+
 ---
 
 ## Задача 14. End-to-end сценарии и приёмочное тестирование MVP

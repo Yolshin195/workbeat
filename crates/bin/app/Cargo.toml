@@ -3,6 +3,10 @@ name = "app"
 edition.workspace = true
 version.workspace = true
 
+[lib]
+name = "app"
+path = "src/lib.rs"
+
 [[bin]]
 name = "workbeat"
 path = "src/main.rs"
@@ -13,3 +17,21 @@ application = { path = "../../application" }
 adapters-persistence-sqlite = { path = "../../adapters/persistence-sqlite" }
 adapters-scheduler-tokio = { path = "../../adapters/scheduler-tokio" }
 adapters-telegram = { path = "../../adapters/telegram" }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal"] }
+teloxide = { version = "0.13", default-features = false, features = [
+    "macros",
+    "ctrlc_handler",
+    "rustls",
+] }
+sqlx = { version = "0.7", default-features = false, features = [
+    "sqlite",
+    "runtime-tokio",
+    "tls-rustls",
+] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+dotenvy = "0.15"
+thiserror = "1"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "signal", "time"] }
+async-trait = "0.1"
