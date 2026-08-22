@@ -1,5 +1,82 @@
 # workbeat — телеграм-бот учёта рабочего времени (Rust + SQLite)
 
+Этот файл — одновременно и спецификация продукта (разделы 1–7 ниже: логика
+50/10, задачи, отчёты, схема БД), и точка входа в проект. План реализации по
+шагам — в [`tasks.md`](tasks.md); он идёт строго по цепочке задач 1 → 14,
+каждая опирается на предыдущую и содержит отметку `✅ Выполнено` с итогом.
+MVP (все 14 задач) реализован; README ниже — актуальная спецификация того,
+что реализовано.
+
+## Как запустить
+
+Требуется стабильный Rust toolchain (edition 2021, см. `Cargo.toml`) и токен
+Telegram-бота (получить у [@BotFather](https://t.me/BotFather)).
+
+```sh
+cp .env.example .env   # заполнить TELEGRAM_BOT_TOKEN и при желании DATABASE_URL
+cargo run -p app        # bin называется `workbeat`, крейт — `app`
+```
+
+Обязательные переменные окружения (`.env` или окружение процесса; см.
+`crates/bin/app/src/config.rs`):
+
+- `DATABASE_URL` — например `sqlite://workbeat.sqlite` (файл создаётся
+  автоматически, миграции применяются при старте).
+- `TELEGRAM_BOT_TOKEN` — токен бота.
+
+Опциональные (есть дефолты из раздела 7 ниже):
+`POLL_INTERVAL_SECS`, `IDLE_PROMPT_THRESHOLD_HOURS`,
+`REMINDER_BURST_WINDOW_MINUTES`, `REMINDER_BURST_INTERVAL_MINUTES`,
+`REMINDER_STEADY_INTERVAL_MINUTES`.
+
+Отсутствие обязательной переменной — понятная ошибка при старте, не паника.
+Ctrl+C останавливает бота и фоновый поллер (`PollLoop`), после чего пул
+подключений к SQLite закрывается — данные переживают перезапуск процесса
+(файл SQLite персистентен, специального шага восстановления состояния нет,
+см. раздел 4).
+
+Полезные команды при разработке:
+
+```sh
+cargo build --workspace
+cargo test --workspace          # юнит- и интеграционные тесты всех крейтов
+cargo clippy --workspace --all-targets
+```
+
+Приёмочные end-to-end сценарии MVP (`tasks.md`, Задача 14) — в
+`crates/bin/app/tests/e2e_scenarios.rs` (плюс `tests/restart_safety.rs` для
+проверки рестарта процесса, Задача 13); оба гоняются вместе с остальными
+тестами через `cargo test --workspace` на временной SQLite-БД, без внешних
+сервисов.
+
+## Архитектура
+
+Гексагональная архитектура (порты/адаптеры) — подробный план по задачам см.
+[`tasks.md`](tasks.md), раздел "Общая архитектура".
+
+```
+crates/
+  domain/                — сущности, value objects, бизнес-правила
+                            (0 внешних зависимостей: без tokio/sqlx/teloxide)
+  application/            — use cases + порты (traits), зависит только от domain
+  adapters/
+    persistence-sqlite/   — реализация репозиториев поверх sqlx/SQLite
+    scheduler-tokio/      — PollLoop: периодический опрос БД на tokio
+                            (единственный механизм проактивных сообщений,
+                            см. раздел 4 — никакого отдельного планировщика)
+    telegram/             — teloxide-адаптер: входящие апдейты → use cases,
+                            исходящие сообщения ← Notifier
+  bin/app/                — composition root: собирает адаптеры + application,
+                            конфиг (`.env`), запуск бота и PollLoop
+```
+
+Правило: **domain** не знает про SQLite/Telegram/tokio-время; **application**
+знает только про traits (порты), не про конкретные реализации; адаптеры
+реализуют порты и ничего не знают друг о друге. Подробности по каждому
+крейту — в его собственном `README.md` (`crates/domain/README.md`,
+`crates/application/README.md`) и в комментариях `✅ Выполнено` при каждой
+задаче `tasks.md`.
+
 ## Идея
 
 Бот дисциплинирует рабочий день по методике 50/10: пользователь работает часовыми
