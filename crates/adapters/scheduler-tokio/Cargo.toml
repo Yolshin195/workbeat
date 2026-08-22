@@ -6,3 +6,9 @@ version.workspace = true
 [dependencies]
 domain = { path = "../../domain" }
 application = { path = "../../application" }
+tokio = { version = "1", features = ["rt", "macros", "time", "sync"] }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "test-util"] }
+async-trait = "0.1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }

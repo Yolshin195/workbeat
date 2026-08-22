@@ -788,6 +788,30 @@ Excel) — без добавления зависимости на `csv`-кре�
   структуры данных для хранения "активных задач" не требуется (в отличие от
   прежнего `TokioScheduler`/`HashMap<JobId, JoinHandle>`).
 
+**✅ Выполнено (2026-08-22):** `PollLoop` реализован в
+`crates/adapters/scheduler-tokio/src/lib.rs` — хранит только `Arc`-и на три
+use case (`AdvanceOpenTenMinChecks`, `RemindAwaitingResume`,
+`PromptContinueIfIdle`) и `poll_interval: Duration`, без какого-либо
+состояния между тиками. `run()` — бесконечный цикл на
+`tokio::time::interval` (по умолчанию `DEFAULT_POLL_INTERVAL = 60s`),
+вызывающий на каждом тике `tick()`, который запускает все три use case
+параллельно через `tokio::join!` и логирует (`eprintln!`) ошибку каждого,
+не прерывая цикл. Тесты — в `crates/adapters/scheduler-tokio/src/tests.rs`,
+с собственными фейками портов (`application::testing` собирается только
+при `cargo test -p application` и недоступен как обычная dev-зависимость
+для другого крейта): `run_polls_on_every_tick_of_virtual_time` — через
+`#[tokio::test(start_paused = true)]` и `tokio::time::advance`, без
+ожидания реальных секунд, продвигает виртуальное время на 5 периодов
+опроса и проверяет, что все три use case вызваны ровно 5 раз;
+`fresh_poll_loop_after_restart_behaves_like_continuous_one` — создаёт два
+независимых `PollLoop` подряд поверх одних и тех же фейковых репозиториев,
+эмулируя рестарт процесса, и проверяет, что счётчики вызовов складываются
+как при непрерывной работе одного цикла (подтверждает restart-safety:
+`PollLoop` не хранит между тиками ничего, что могло бы потеряться при
+рестарте). `cargo test -p adapters-scheduler-tokio` (3 теста, <1с реального
+времени), `cargo test --workspace`, `cargo build --workspace` и
+`cargo clippy --workspace --all-targets` проходят чисто.
+
 ---
 
 ## Задача 11. Telegram-адаптер: входящие команды → use cases
