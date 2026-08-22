@@ -2,7 +2,7 @@
 //! `tasks.md`). Никакой бизнес-логики здесь нет — только разбор апдейтов
 //! (`intent`), их исполнение через use cases (`executor`) и Telegram-специфика
 //! (маппинг id, клавиатуры, диспетчер). Реализация `Notifier` поверх
-//! `teloxide::Bot` (исходящие сообщения) — отдельная Задача 12, не эта.
+//! `teloxide::Bot` (исходящие сообщения, `notifier.rs`) — Задача 12.
 
 mod callback;
 mod commands;
@@ -12,12 +12,14 @@ mod executor;
 mod ids;
 mod intent;
 mod keyboards;
+mod notifier;
 mod session;
 mod text;
 
 pub use commands::Command;
 pub use deps::UseCases;
 pub use ids::{chat_id_for, telegram_id_from_user};
+pub use notifier::TeloxideNotifier;
 pub use session::SessionStore;
 
 use std::sync::Arc;
