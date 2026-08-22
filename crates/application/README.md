@@ -36,6 +36,20 @@ use cases в Задачах 5-9. Некоторые запросы, требую
 состояние тест выставляет явно (`set_has_active_interval`,
 `set_interval_closed`).
 
+## Use cases
+
+- `RegisterUserIfNotExists(telegram_id) -> User` — вызывается на любое
+  входящее сообщение (идемпотентно): если пользователь уже есть, возвращает
+  его без изменений, иначе создаёт с часовым поясом UTC по умолчанию.
+- `StartWorkDay(user_id) -> WorkDay` — команда `/start_day`; ошибка
+  `StartWorkDayError::AlreadyOpen`, если у пользователя уже есть открытый
+  (`finished_at IS NULL`) день.
+
+Каждый use case — отдельная структура, получающая нужные порты через
+конструктор (`Arc<dyn Trait>`) — ручной dependency injection без
+DI-фреймворка. Use cases не импортируют ничего из `adapters/*` и не содержат
+SQL/Telegram-типов; ошибки — типизированные (`thiserror`), не `anyhow::Error`.
+
 ## Тесты
 
 ```sh
