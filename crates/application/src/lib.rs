@@ -9,6 +9,7 @@
 mod error;
 mod outbound_message;
 mod ports;
+mod reminder_schedule_config;
 mod use_cases;
 
 #[cfg(test)]
@@ -20,8 +21,14 @@ pub use ports::{
     Clock, HourIntervalRepository, Notifier, TaskRepository, TenMinCheckRepository, UserRepository,
     WorkDayRepository,
 };
+pub use reminder_schedule_config::ReminderScheduleConfig;
 pub use use_cases::{
-    CreateTask, CreateTaskError, ListAvailableTasks, MarkTaskDone, MarkTaskInProgress,
-    RegisterUserIfNotExists, StartWorkDay, StartWorkDayError, TaskFilter, UpdateTask,
-    UpdateTaskError,
+    AdvanceOpenTenMinChecks, AdvanceOpenTenMinChecksError, ConfirmReadyToContinue,
+    ConfirmReadyToContinueError, CreateTask, CreateTaskError, FinishHourInterval,
+    FinishHourIntervalError, ListAvailableTasks, MarkReturnedFromRest, MarkReturnedFromRestError,
+    MarkTaskDone, MarkTaskInProgress, RegisterUserIfNotExists, RemindAwaitingResume,
+    RemindAwaitingResumeError, StartHourInterval, StartHourIntervalError, StartWorkDay,
+    StartWorkDayError, SubmitFailureReason, SubmitFailureReasonError, SubmitTenMinAnswer,
+    SubmitTenMinAnswerError, SwitchTaskMidInterval, SwitchTaskMidIntervalError, TaskFilter,
+    UpdateTask, UpdateTaskError,
 };
