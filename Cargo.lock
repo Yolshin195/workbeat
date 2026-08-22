@@ -20,7 +20,10 @@ name = "adapters-scheduler-tokio"
 version = "0.1.0"
 dependencies = [
  "application",
+ "async-trait",
+ "chrono",
  "domain",
+ "tokio",
 ]
 
 [[package]]
