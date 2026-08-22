@@ -965,6 +965,28 @@ CSV-экспорта из Задачи 9 как файла).
 - Отправка обычного сообщения (`Text`) и отправка документа (`Document`, CSV)
   оба покрыты тестами.
 
+**✅ Выполнено (2026-08-22):** `TeloxideNotifier` реализован в
+`crates/adapters/telegram/src/notifier.rs` — единственная реализация порта
+`Notifier` (Задача 3) в системе: `OutboundMessage::Text` → `bot.send_message`,
+`OutboundMessage::Document { filename, bytes }` → `bot.send_document` через
+`InputFile::memory(bytes).file_name(filename)`; маппинг `TelegramId → ChatId`
+переиспользует `ids::chat_id_for` из Задачи 11 (без дублирования). Ошибки
+teloxide (`RequestError`) маппятся в типизированную `NotifierError::DeliveryFailed`.
+Крейт экспортирует `TeloxideNotifier` из `lib.rs` — сборка в composition root
+(Задача 13) сможет передать её в use cases и в `PollLoop` без изменений в
+`application`/`domain`.
+
+Тестирование — вторым вариантом из задачи (mock HTTP-сервер вместо реального
+тестового бота, чтобы не требовать токен/сеть в CI): интеграционные тесты в
+`crates/adapters/telegram/tests/notifier.rs` поднимают `wiremock::MockServer`,
+указывают в него `teloxide::Bot` через `Bot::new(token).set_api_url(...)` и
+проверяют оба варианта `OutboundMessage` (`sends_text_message_via_send_message`,
+`sends_document_via_send_document`) плюс проброс ошибки Bot API в
+`NotifierError` (`propagates_notifier_error_on_api_failure`) — 3 теста, без
+сети и без токена. `cargo test -p adapters-telegram` (38 unit + 3 интеграционных),
+`cargo test --workspace`, `cargo build --workspace` и
+`cargo clippy --workspace --all-targets` проходят чисто.
+
 ---
 
 ## Задача 13. Composition root и конфигурация
