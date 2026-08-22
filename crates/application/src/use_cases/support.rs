@@ -1,10 +1,13 @@
 //! Общие приватные хелперы для use cases часового интервала/десятиминуток
 //! (Задача 7), переиспользуемые несколькими файлами этого модуля.
 
+use std::collections::HashMap;
 use std::sync::Arc;
 
+use chrono::Duration;
 use domain::{
-    CheckStatus, HourIntervalId, HourIntervalState, Task, TaskStatus, TelegramId, TenMinCheck,
+    task_time, CheckStatus, HourIntervalId, HourIntervalState, Task, TaskId, TaskStatus,
+    TelegramId, TenMinCheck,
 };
 
 use crate::error::RepoError;
@@ -12,10 +15,13 @@ use crate::ports::{HourIntervalRepository, TaskRepository, WorkDayRepository};
 
 /// Результат позиционной классификации десятиминуток одного интервала:
 /// `closed_work_statuses` — статусы уже закрытых **рабочих** попыток (без
-/// слота отдыха, см. `HourIntervalState`), `rest_check` — сама десятиминутка
+/// слота отдыха, см. `HourIntervalState`), `closed_work_checks` — те же
+/// попытки целиком (нужны там, где важен `task_id`, например при подсчёте
+/// времени по задачам в `FinishWorkDay`), `rest_check` — сама десятиминутка
 /// отдыха, если она уже была создана (открыта или уже закрыта).
 pub(crate) struct ClassifiedChecks {
     pub closed_work_statuses: Vec<CheckStatus>,
+    pub closed_work_checks: Vec<TenMinCheck>,
     pub rest_check: Option<TenMinCheck>,
 }
 
@@ -28,6 +34,7 @@ pub(crate) fn classify_checks(mut checks: Vec<TenMinCheck>) -> ClassifiedChecks 
     checks.sort_by_key(|check| check.started_at());
 
     let mut closed_work_statuses = Vec::new();
+    let mut closed_work_checks = Vec::new();
     let mut rest_check = None;
 
     for check in checks {
@@ -35,13 +42,47 @@ pub(crate) fn classify_checks(mut checks: Vec<TenMinCheck>) -> ClassifiedChecks 
             rest_check = Some(check);
         } else if check.ended_at().is_some() {
             closed_work_statuses.push(check.status());
+            closed_work_checks.push(check);
         }
     }
 
     ClassifiedChecks {
         closed_work_statuses,
+        closed_work_checks,
         rest_check,
     }
+}
+
+/// Суммарное время по задачам одного часового интервала (README.md раздел 3):
+/// для каждой задачи, у которой были успешные (`Worked`) десятиминутки в этом
+/// интервале, — `task_time(worked_count, earns_rest)`, где `earns_rest` истинно
+/// только для задачи, которой принадлежит десятиминутка отдыха (если рабочий
+/// этап интервала закрыт естественно, 5/5). Используется `FinishWorkDay` для
+/// подсчёта итога дня по задачам.
+pub(crate) fn task_time_totals_for_interval(checks: Vec<TenMinCheck>) -> Vec<(TaskId, Duration)> {
+    let classified = classify_checks(checks);
+    let rest_earned = HourIntervalState::is_rest_owed(&classified.closed_work_statuses);
+    let rest_task_id = classified.rest_check.as_ref().map(TenMinCheck::task_id);
+
+    let mut worked_by_task: HashMap<TaskId, u8> = HashMap::new();
+    for check in &classified.closed_work_checks {
+        if check.status() == CheckStatus::Worked {
+            *worked_by_task.entry(check.task_id()).or_insert(0) += 1;
+        }
+    }
+    if rest_earned {
+        if let Some(task_id) = rest_task_id {
+            worked_by_task.entry(task_id).or_insert(0);
+        }
+    }
+
+    worked_by_task
+        .into_iter()
+        .map(|(task_id, worked_count)| {
+            let earns_rest = rest_earned && rest_task_id == Some(task_id);
+            (task_id, task_time(worked_count, earns_rest))
+        })
+        .collect()
 }
 
 /// `TelegramId` пользователя, которому принадлежит часовой интервал — нужен

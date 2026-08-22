@@ -7,6 +7,7 @@
 //! `async-trait` и `thiserror` — никакого sqlx/teloxide/tokio-runtime.
 
 mod error;
+mod idle_prompt_config;
 mod outbound_message;
 mod ports;
 mod reminder_schedule_config;
@@ -16,6 +17,7 @@ mod use_cases;
 pub mod testing;
 
 pub use error::{NotifierError, RepoError};
+pub use idle_prompt_config::IdlePromptConfig;
 pub use outbound_message::OutboundMessage;
 pub use ports::{
     Clock, HourIntervalRepository, Notifier, TaskRepository, TenMinCheckRepository, UserRepository,
@@ -24,11 +26,13 @@ pub use ports::{
 pub use reminder_schedule_config::ReminderScheduleConfig;
 pub use use_cases::{
     AdvanceOpenTenMinChecks, AdvanceOpenTenMinChecksError, ConfirmReadyToContinue,
-    ConfirmReadyToContinueError, CreateTask, CreateTaskError, FinishHourInterval,
-    FinishHourIntervalError, ListAvailableTasks, MarkReturnedFromRest, MarkReturnedFromRestError,
-    MarkTaskDone, MarkTaskInProgress, RegisterUserIfNotExists, RemindAwaitingResume,
-    RemindAwaitingResumeError, StartHourInterval, StartHourIntervalError, StartWorkDay,
-    StartWorkDayError, SubmitFailureReason, SubmitFailureReasonError, SubmitTenMinAnswer,
-    SubmitTenMinAnswerError, SwitchTaskMidInterval, SwitchTaskMidIntervalError, TaskFilter,
-    UpdateTask, UpdateTaskError,
+    ConfirmReadyToContinueError, CreateTask, CreateTaskError, EndLunch, EndLunchError,
+    FinishHourInterval, FinishHourIntervalError, FinishWorkDay, FinishWorkDayError,
+    ListAvailableTasks, MarkReturnedFromRest, MarkReturnedFromRestError, MarkTaskDone,
+    MarkTaskInProgress, PromptContinueIfIdle, PromptContinueIfIdleError, RegisterUserIfNotExists,
+    RemindAwaitingResume, RemindAwaitingResumeError, StartHourInterval, StartHourIntervalError,
+    StartLunch, StartLunchError, StartWorkDay, StartWorkDayError, SubmitFailureReason,
+    SubmitFailureReasonError, SubmitTenMinAnswer, SubmitTenMinAnswerError,
+    SuggestLunchAfterNthInterval, SuggestLunchAfterNthIntervalError, SwitchTaskMidInterval,
+    SwitchTaskMidIntervalError, TaskFilter, UpdateTask, UpdateTaskError, WorkDayFinishSummary,
 };
