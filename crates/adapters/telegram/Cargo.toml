@@ -6,3 +6,14 @@ version.workspace = true
 [dependencies]
 domain = { path = "../../domain" }
 application = { path = "../../application" }
+teloxide = { version = "0.13", default-features = false, features = [
+    "macros",
+    "ctrlc_handler",
+    "rustls",
+] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "sync"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+log = "0.4"
+
+[dev-dependencies]
+pollster = "0.3"

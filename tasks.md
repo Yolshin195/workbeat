@@ -861,6 +861,63 @@ Telegram-адаптер вызывает их по командам пользо
   use cases (проверяется по импортам крейта).
 - Все тексты сообщений вынесены в один модуль (легко менять формулировки).
 
+**✅ Выполнено (2026-08-22):** `crates/adapters/telegram` реализован на
+`teloxide` 0.13. Архитектурно крейт разбит на чистый разбор апдейтов и
+исполнение с побочными эффектами:
+- `text.rs` — все текстовые сообщения и подписи кнопок в одном модуле.
+- `ids.rs` — маппинг `teloxide::{ChatId, UserId}` ↔ `domain::TelegramId`
+  (бот работает только в приватных чатах, поэтому `ChatId` и `UserId`
+  пользователя численно совпадают — иначе `Notifier`, Задача 12, было бы
+  некуда слать проактивные сообщения без отдельного поля `chat_id` в схеме).
+- `callback.rs` — `CallbackAction` (кодирование/разбор `callback_data`
+  инлайн-кнопок), чистые функции, 3 табличных теста без сети.
+- `session.rs` — `ChatSession`/`Awaiting`: что бот ждёт от следующего
+  сообщения чата и закэшированные `work_day_id`/`interval_id`/`check_id`
+  (единственный способ передать их между командами, не обращаясь к
+  репозиториям напрямую в обход use cases). Живёт только в памяти процесса
+  — в схеме SPEC.md нет таблицы для этого UI-состояния; restart-safety
+  проактивных сообщений (SPEC.md п.4) это не нарушает, так как та целиком
+  обеспечивается `PollLoop` (Задача 10) независимо от Telegram-адаптера.
+- `intent.rs` — `interpret(session, event) -> Intent`: чистая функция без
+  ввода-вывода, решающая, какой use case вызвать дальше (или что просто
+  переспросить без обращения к БД); 20 unit-тестов, включая корректную
+  Unicode-нечувствительность к регистру кириллицы (`to_lowercase()`, а не
+  `eq_ignore_ascii_case`, которая работает только с ASCII).
+- `deps.rs` — `UseCases`, пучок всех нужных use cases из Задач 6/7/8/9.
+- `executor.rs`/`dispatch.rs`/`keyboards.rs`/`commands.rs` — исполнение
+  `Intent` (вызов use case, обновление `ChatSession`, отправка ответа) и
+  сборка `teloxide::Dispatcher` (три ветки: команда / callback-кнопка /
+  свободный текст), каждая начинается с `RegisterUserIfNotExists`.
+
+Покрыты все перечисленные в задаче обработчики: `/start_day`,
+`/finish_day`, `/report`, `/report_week`, `/report_month`, экспорт CSV
+(`OutboundMessage::Document` через `send_document`), кнопки Да/Нет с
+последующим "Что случилось?"/"Готов продолжить?", свободный текст на
+поздний отклик после молчания (`SubmitFailureReason`, best-effort по
+`session.check_id` — единственному надёжному источнику остаётся
+`ConfirmReadyToContinue`, так как `SubmitTenMinAnswer` не возвращает id
+только что созданного следующего слота; при ошибке адаптер просто отвечает
+"не понял", без падений), "Начать интервал"/"Пойти на обед"/"Вернулся"
+(разный use case в зависимости от `lunch_active`/`rest_active`), "Задача
+готова" (кнопка и свободный текст), диалоги `/new_task`/`/edit_task`
+(title → priority → deadline → status, `UpdateTask`'овская семантика
+`Option<Option<_>>` отражена кнопкой "оставить как есть" против явного
+текста "нет"). Отображение приоритета/дедлайна в пуле задач — в
+`text::task_button_label`/`task_list_line`, через `ListAvailableTasks`,
+без прямых вызовов `TaskRepository`. Реализация `Notifier` поверх
+`teloxide::Bot` — не эта задача, а Задача 12; поэтому проактивные
+сообщения из poll-цикла (Задача 10) пока без клавиатур — это ожидаемо и
+описано в комментариях `executor.rs`.
+
+37 unit-тестов крейта (`cargo test -p adapters-telegram`), `cargo test
+--workspace` (194 теста по всем крейтам), `cargo build --workspace` и
+`cargo clippy --workspace --all-targets` проходят чисто. Проверено по графу
+зависимостей:
+`application` не содержит `teloxide` ни в `Cargo.toml`, ни в коде (только в
+doc-комментариях, поясняющих архитектурное правило); `adapters/telegram` не
+импортирует ни один `*Repository` trait — только `application::{use_cases,
+UseCases}`.
+
 ---
 
 ## Задача 12. Notifier-реализация поверх Telegram
