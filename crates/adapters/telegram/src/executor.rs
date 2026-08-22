@@ -90,8 +90,11 @@ pub async fn handle_intent(
         } => {
             handle_submit_no_reason(bot, deps, chat_id, &mut session, interval_id, reason).await
         }
-        Intent::SubmitLateReason { check_id, reason } => {
-            handle_submit_late_reason(bot, deps, chat_id, &mut session, check_id, reason).await
+        Intent::SubmitLateReason {
+            interval_id,
+            reason,
+        } => {
+            handle_submit_late_reason(bot, deps, chat_id, &mut session, interval_id, reason).await
         }
         Intent::ConfirmContinue { interval_id } => {
             handle_confirm_continue(bot, deps, chat_id, &mut session, interval_id).await
@@ -388,7 +391,6 @@ async fn handle_start_interval(
     match deps.start_hour_interval.execute(work_day_id, task_id).await {
         Ok(interval) => {
             session.interval_id = Some(interval.id());
-            session.check_id = None;
             session.worked_in_interval = 0;
             session.rest_active = false;
             session.awaiting = Awaiting::Nothing;
@@ -479,10 +481,10 @@ async fn handle_submit_late_reason(
     deps: &UseCases,
     chat_id: ChatId,
     session: &mut ChatSession,
-    check_id: domain::TenMinCheckId,
+    interval_id: domain::HourIntervalId,
     reason: String,
 ) {
-    match deps.submit_failure_reason.execute(check_id, reason).await {
+    match deps.submit_failure_reason.execute(interval_id, reason).await {
         Ok(_) => {
             session.awaiting = Awaiting::ConfirmContinue;
             send_text_kb(
@@ -507,9 +509,8 @@ async fn handle_confirm_continue(
     interval_id: domain::HourIntervalId,
 ) {
     match deps.confirm_ready_to_continue.execute(interval_id).await {
-        Ok(new_check) => {
+        Ok(_new_check) => {
             session.awaiting = Awaiting::Nothing;
-            session.check_id = Some(new_check.id());
             send_text_kb(bot, chat_id, text::NEXT_SLOT_STARTED, keyboards::ten_min_keyboard())
                 .await;
         }
@@ -575,7 +576,6 @@ async fn handle_finish_interval(
         Ok(interval) => {
             let work_day_id = session.work_day_id;
             session.interval_id = None;
-            session.check_id = None;
             session.worked_in_interval = 0;
             session.rest_active = false;
             session.awaiting = Awaiting::Nothing;

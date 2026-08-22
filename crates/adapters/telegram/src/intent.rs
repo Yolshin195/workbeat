@@ -8,7 +8,7 @@
 //! Собственно вызовы use cases и отправка сообщений — в `executor.rs`.
 
 use chrono::NaiveDate;
-use domain::{HourIntervalId, TaskId, TaskPriority, TaskStatus, TenMinCheckId, WorkDayId};
+use domain::{HourIntervalId, TaskId, TaskPriority, TaskStatus, WorkDayId};
 
 use crate::callback::CallbackAction;
 use crate::commands::Command;
@@ -74,7 +74,7 @@ pub enum Intent {
         reason: String,
     },
     SubmitLateReason {
-        check_id: TenMinCheckId,
+        interval_id: HourIntervalId,
         reason: String,
     },
     ConfirmContinue {
@@ -421,17 +421,26 @@ fn interpret_text(session: &ChatSession, raw: String) -> Intent {
 /// может в любой момент написать 'задача готова'") и поздний отклик на
 /// молчание (README.md раздел 2, п.2) — десятиминутка к этому моменту уже
 /// закрыта `PollLoop`-ом как `NoResponse` без участия адаптера, поэтому
-/// текст трактуется как причина через `SubmitFailureReason`, а не через
-/// `SubmitTenMinAnswer` (та ожидает **открытую** десятиминутку).
+/// текст трактуется как причина через `SubmitFailureReason(interval_id, ..)`,
+/// а не через `SubmitTenMinAnswer` (та ожидает **открытую** десятиминутку).
+/// `SubmitFailureReason` сам находит нужную (последнюю) десятиминутку
+/// интервала — адаптеру для этого достаточно закэшированного
+/// `interval_id`, отдельный `check_id` ему для этого не нужен (см. Задачу 7:
+/// use case принимает `interval_id`, а не `check_id`, именно ради этого).
+/// Если текст ни на что из перечисленного не похож, `executor` всё равно
+/// попробует вызвать `SubmitFailureReason` и корректно покажет "не понял"
+/// при доменной ошибке (например, если сейчас никакая десятиминутка ответа
+/// не ждёт) — так адаптеру не нужно самому гадать по локальному состоянию,
+/// применим ли отклик.
 fn interpret_free_text(session: &ChatSession, raw: String) -> Intent {
     if is_task_ready_phrase(&raw) {
         return require_interval(session, text::NO_ACTIVE_TASK_TO_SWITCH, |interval_id| {
             Intent::ListTasksToSwitch { interval_id }
         });
     }
-    if let (Some(_), Some(check_id)) = (session.interval_id, session.check_id) {
+    if let Some(interval_id) = session.interval_id {
         return Intent::SubmitLateReason {
-            check_id,
+            interval_id,
             reason: raw,
         };
     }
@@ -536,17 +545,25 @@ mod tests {
     }
 
     #[test]
-    fn late_free_text_with_cached_check_submits_failure_reason() {
+    fn late_free_text_with_active_interval_submits_failure_reason_for_it() {
         let session = session_with(|s| {
             s.interval_id = Some(HourIntervalId::new(1));
-            s.check_id = Some(TenMinCheckId::new(9));
         });
         assert_eq!(
             interpret(&session, IncomingEvent::Text("прости, отвлёкся".to_string())),
             Intent::SubmitLateReason {
-                check_id: TenMinCheckId::new(9),
+                interval_id: HourIntervalId::new(1),
                 reason: "прости, отвлёкся".to_string(),
             }
+        );
+    }
+
+    #[test]
+    fn free_text_without_active_interval_is_unrecognized() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(&session, IncomingEvent::Text("привет".to_string())),
+            Intent::Unrecognized
         );
     }
 

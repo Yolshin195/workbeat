@@ -10,7 +10,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 
 use chrono::NaiveDate;
-use domain::{HourIntervalId, TaskId, TaskPriority, TenMinCheckId, WorkDayId};
+use domain::{HourIntervalId, TaskId, TaskPriority, WorkDayId};
 use teloxide::types::ChatId;
 
 /// Что бот ждёт от следующего свободного текстового сообщения этого чата.
@@ -72,12 +72,6 @@ pub enum Awaiting {
 pub struct ChatSession {
     pub work_day_id: Option<WorkDayId>,
     pub interval_id: Option<HourIntervalId>,
-    /// Последняя известная десятиминутка интервала — открытая либо только что
-    /// закрытая. Нужна для `SubmitFailureReason`, когда пользователь
-    /// откликается на молчание уже после того, как `PollLoop` (Задача
-    /// 7/10) сам закрыл десятиминутку как `NoResponse` без участия
-    /// адаптера — см. `intent.rs`.
-    pub check_id: Option<TenMinCheckId>,
     /// Счётчик успешных (`Worked`) ответов текущего интервала, полученный из
     /// возвращаемых значений `SubmitTenMinAnswer` — используется только для
     /// выбора, какую кнопку показать дальше ("Вернулся" после отдыха или
