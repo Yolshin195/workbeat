@@ -41,7 +41,7 @@ jobs:
           concurrent_skipping: 'same_content'
           # если на этом же дереве файлов уже был успешный run — пропускаем
           skip_after_successful_duplicate: 'true'
-          # cron всегда должен реально запускаться
+          # cron и ручной запуск всегда должны реально выполняться
           do_not_skip: '["schedule", "workflow_dispatch"]'
 
   audit:
@@ -50,10 +50,19 @@ jobs:
     if: needs.pre_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # actions-rust-lang/audit по умолчанию пытается создавать issue
+    # на найденные уязвимости на main/master — для этого нужен issues: write
+    permissions:
+      contents: read
+      issues: write
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
       - uses: actions-rust-lang/audit@v1
+        with:
+          # Завершать работу с ошибкой, если найдены предупреждения
+          # (unmaintained/yanked-крейты), а не только реальные уязвимости
+          denyWarnings: true
 
   deny:
     name: Cargo Deny
@@ -73,12 +82,17 @@ jobs:
     if: needs.pre_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # включайте, когда настроите supply-chain/ (cargo vet init)
+    # включайте continue-on-error: false, когда настроите supply-chain/ (cargo vet init)
     continue-on-error: true
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - uses: mozilla/cargo-vet-action@v1
+      - name: Install cargo-vet
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-vet
+      - name: Run cargo vet
+        run: cargo vet
 
   auditable:
     name: Cargo Auditable Build
@@ -88,8 +102,12 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - uses: rust-security/cargo-auditable-action@v1
+      - name: Install cargo-auditable
+        uses: taiki-e/install-action@v2
         with:
-          command: build
-          args: --release --locked
+          tool: cargo-auditable
+      - name: Build with embedded dependency info
+        run: cargo auditable build --release --locked
