@@ -1,0 +1,95 @@
+name: Security & Supply Chain Checks
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  pre_check:
+    name: Skip Duplicate Runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # сравнивает содержимое (git tree hash), а не commit hash
+          concurrent_skipping: 'same_content'
+          # если на этом же дереве файлов уже был успешный run — пропускаем
+          skip_after_successful_duplicate: 'true'
+          # cron всегда должен реально запускаться
+          do_not_skip: '["schedule", "workflow_dispatch"]'
+
+  audit:
+    name: Cargo Audit
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/audit@v1
+
+  deny:
+    name: Cargo Deny
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      # требует deny.toml в корне репо (cargo deny init)
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  vet:
+    name: Cargo Vet
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # включайте, когда настроите supply-chain/ (cargo vet init)
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: mozilla/cargo-vet-action@v1
+
+  auditable:
+    name: Cargo Auditable Build
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: rust-security/cargo-auditable-action@v1
+        with:
+          command: build
+          args: --release --locked

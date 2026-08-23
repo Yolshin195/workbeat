@@ -2,6 +2,7 @@
 name = "adapters-scheduler-tokio"
 edition.workspace = true
 version.workspace = true
+license.workspace = true
 
 [dependencies]
 domain = { path = "../../domain" }
