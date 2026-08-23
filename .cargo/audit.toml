@@ -1,0 +1,15 @@
+[advisories]
+ignore = [
+    # rsa: Marvin Attack timing side-channel. No patched version exists upstream
+    # (https://github.com/RustCrypto/RSA/issues/626). Pulled in only as an optional,
+    # unused transitive dependency of sqlx's MySQL backend (sqlx-mysql); this project
+    # only enables sqlx's "sqlite" feature and never compiles or exercises the MySQL
+    # backend, so the timing side-channel is not reachable in this codebase.
+    "RUSTSEC-2023-0071",
+
+    # proc-macro-error2: teloxide's `aquamarine` dependency (rustdoc mermaid.js
+    # diagrams, build-time only) uses proc-macro-error2, which was marked
+    # unmaintained upstream. aquamarine 0.6.0 is the latest release and there is
+    # no newer version to move to yet; revisit once teloxide/aquamarine drop it.
+    "RUSTSEC-2026-0173",
+]
