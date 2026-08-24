@@ -1,0 +1,113 @@
+name: Security & Supply Chain Checks
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+      - '.github/workflows/security.yml'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - '**/Cargo.toml'
+      - '**/Cargo.lock'
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  pre_check:
+    name: Skip Duplicate Runs
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      should_skip: ${{ steps.skip_check.outputs.should_skip }}
+    steps:
+      - id: skip_check
+        uses: fkirc/skip-duplicate-actions@v5
+        with:
+          # сравнивает содержимое (git tree hash), а не commit hash
+          concurrent_skipping: 'same_content'
+          # если на этом же дереве файлов уже был успешный run — пропускаем
+          skip_after_successful_duplicate: 'true'
+          # cron и ручной запуск всегда должны реально выполняться
+          do_not_skip: '["schedule", "workflow_dispatch"]'
+
+  audit:
+    name: Cargo Audit
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # actions-rust-lang/audit по умолчанию пытается создавать issue
+    # на найденные уязвимости на main/master — для этого нужен issues: write
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions-rust-lang/audit@v1
+        with:
+          # Завершать работу с ошибкой, если найдены предупреждения
+          # (unmaintained/yanked-крейты), а не только реальные уязвимости
+          denyWarnings: true
+
+  deny:
+    name: Cargo Deny
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      # требует deny.toml в корне репо (cargo deny init)
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  vet:
+    name: Cargo Vet
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    # supply-chain/ настроен (cargo vet init + импорт mozilla/google/embark-studios),
+    # cargo vet проходит — job теперь блокирующий
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-vet
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-vet
+      - name: Run cargo vet
+        run: cargo vet
+
+  auditable:
+    name: Cargo Auditable Build
+    needs: pre_check
+    if: needs.pre_check.outputs.should_skip != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Install cargo-auditable
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-auditable
+      - name: Build with embedded dependency info
+        run: cargo auditable build --release --locked
