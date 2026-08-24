@@ -82,8 +82,8 @@ jobs:
     if: needs.pre_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    # включайте continue-on-error: false, когда настроите supply-chain/ (cargo vet init)
-    continue-on-error: true
+    # supply-chain/ настроен (cargo vet init + импорт mozilla/google/embark-studios),
+    # cargo vet проходит — job теперь блокирующий
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
