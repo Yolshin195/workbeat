@@ -5,6 +5,7 @@ use domain::Task;
 use teloxide::types::{InlineKeyboardButton, InlineKeyboardMarkup};
 
 use crate::callback::CallbackAction;
+use crate::commands::Command;
 use crate::text;
 
 fn button(label: &str, action: CallbackAction) -> InlineKeyboardButton {
@@ -109,6 +110,29 @@ pub fn skip_field_keyboard() -> InlineKeyboardMarkup {
     InlineKeyboardMarkup::new([[button(text::SKIP_FIELD_BUTTON, CallbackAction::SkipField)]])
 }
 
+/// Меню `/help` — по кнопке на команду, чтобы не набирать их руками. Кнопки
+/// шлют `CallbackAction::RunCommand`, который проходит через тот же
+/// `interpret_command`, что и текстовая команда (см. `intent.rs`).
+pub fn help_keyboard() -> InlineKeyboardMarkup {
+    fn run(command: Command) -> CallbackAction {
+        CallbackAction::RunCommand(command)
+    }
+
+    InlineKeyboardMarkup::new([
+        vec![button(text::BTN_START_DAY, run(Command::StartDay))],
+        vec![button(text::BTN_FINISH_DAY, run(Command::FinishDay))],
+        vec![button(text::BTN_REPORT, run(Command::Report))],
+        vec![
+            button(text::BTN_REPORT_WEEK, run(Command::ReportWeek)),
+            button(text::BTN_REPORT_MONTH, run(Command::ReportMonth)),
+        ],
+        vec![button(text::BTN_EXPORT_CSV, run(Command::ExportCsv))],
+        vec![button(text::BTN_NEW_TASK, run(Command::NewTask))],
+        vec![button(text::BTN_TASKS, run(Command::Tasks))],
+        vec![button(text::BTN_EDIT_TASK, run(Command::EditTask))],
+    ])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -146,5 +170,13 @@ mod tests {
         assert_eq!(keyboard.inline_keyboard.len(), 2);
         assert_eq!(keyboard.inline_keyboard[0].len(), 2);
         assert_eq!(keyboard.inline_keyboard[1].len(), 1);
+    }
+
+    #[test]
+    fn help_keyboard_has_one_button_per_non_start_command() {
+        let keyboard = help_keyboard();
+        let button_count: usize = keyboard.inline_keyboard.iter().map(Vec::len).sum();
+        // Все команды, кроме /start и /help.
+        assert_eq!(button_count, 9);
     }
 }

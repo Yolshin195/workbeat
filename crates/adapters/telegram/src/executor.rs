@@ -31,6 +31,9 @@ pub async fn handle_intent(
         Intent::ShowWelcome => {
             send_text(bot, chat_id, text::WELCOME).await;
         }
+        Intent::ShowHelp => {
+            send_text_kb(bot, chat_id, text::HELP_TEXT, keyboards::help_keyboard()).await;
+        }
         Intent::StartDay => handle_start_day(bot, deps, chat_id, user_id, &mut session).await,
         Intent::FinishDay { work_day_id } => {
             handle_finish_day(bot, deps, chat_id, user_id, &mut session, work_day_id).await

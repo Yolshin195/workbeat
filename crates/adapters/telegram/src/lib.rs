@@ -25,6 +25,7 @@ pub use session::SessionStore;
 use std::sync::Arc;
 
 use teloxide::prelude::*;
+use teloxide::utils::command::BotCommands;
 
 /// Запускает long-polling бота: единственная точка входа этого крейта,
 /// вызывается composition root'ом (Задача 13). `bot` создаётся вызывающей
@@ -32,6 +33,13 @@ use teloxide::prelude::*;
 /// cases с реальными реализациями портов.
 pub async fn run(bot: Bot, use_cases: Arc<UseCases>) {
     let sessions = Arc::new(SessionStore::new());
+
+    // Регистрирует список команд в нативном меню Telegram (кнопка "Menu"
+    // рядом с полем ввода и автодополнение по "/") — само по себе не влияет
+    // на разбор апдейтов, только на подсказки клиента.
+    if let Err(err) = bot.set_my_commands(Command::bot_commands()).await {
+        log::warn!("не удалось зарегистрировать команды бота в Telegram: {err}");
+    }
 
     Dispatcher::builder(bot, dispatch::schema())
         .dependencies(dptree::deps![use_cases, sessions])

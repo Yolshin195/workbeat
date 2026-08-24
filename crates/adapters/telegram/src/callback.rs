@@ -5,6 +5,8 @@
 
 use domain::{TaskId, TaskPriority, TaskStatus};
 
+use crate::commands::Command;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CallbackAction {
     TenMinYes,
@@ -21,6 +23,10 @@ pub enum CallbackAction {
     Status(TaskStatus),
     SkipField,
     Cancel,
+    /// Кнопка меню `/help` — выполняет ту же команду, что и её текстовый
+    /// аналог (проходит через тот же `interpret_command`, поэтому проверки
+    /// вроде "день не начат" работают одинаково для кнопки и для `/команды`).
+    RunCommand(Command),
 }
 
 impl CallbackAction {
@@ -42,6 +48,7 @@ impl CallbackAction {
             CallbackAction::Status(status) => format!("status:{}", status_tag(status)),
             CallbackAction::SkipField => "skip_field".to_string(),
             CallbackAction::Cancel => "cancel".to_string(),
+            CallbackAction::RunCommand(command) => format!("run:{}", command_tag(command)),
         }
     }
 
@@ -55,6 +62,7 @@ impl CallbackAction {
                 "edit_task" => Some(CallbackAction::EditTask(TaskId::new(arg.parse().ok()?))),
                 "priority" => Some(CallbackAction::Priority(parse_priority_tag(arg)?)),
                 "status" => Some(CallbackAction::Status(parse_status_tag(arg)?)),
+                "run" => Some(CallbackAction::RunCommand(parse_command_tag(arg)?)),
                 _ => None,
             };
         }
@@ -89,6 +97,39 @@ fn parse_priority_tag(tag: &str) -> Option<Option<TaskPriority>> {
         "medium" => Some(Some(TaskPriority::Medium)),
         "low" => Some(Some(TaskPriority::Low)),
         "none" => Some(None),
+        _ => None,
+    }
+}
+
+fn command_tag(command: Command) -> &'static str {
+    match command {
+        Command::Start => "start",
+        Command::Help => "help",
+        Command::StartDay => "start_day",
+        Command::FinishDay => "finish_day",
+        Command::Report => "report",
+        Command::ReportWeek => "report_week",
+        Command::ReportMonth => "report_month",
+        Command::ExportCsv => "export_csv",
+        Command::NewTask => "new_task",
+        Command::Tasks => "tasks",
+        Command::EditTask => "edit_task",
+    }
+}
+
+fn parse_command_tag(tag: &str) -> Option<Command> {
+    match tag {
+        "start" => Some(Command::Start),
+        "help" => Some(Command::Help),
+        "start_day" => Some(Command::StartDay),
+        "finish_day" => Some(Command::FinishDay),
+        "report" => Some(Command::Report),
+        "report_week" => Some(Command::ReportWeek),
+        "report_month" => Some(Command::ReportMonth),
+        "export_csv" => Some(Command::ExportCsv),
+        "new_task" => Some(Command::NewTask),
+        "tasks" => Some(Command::Tasks),
+        "edit_task" => Some(Command::EditTask),
         _ => None,
     }
 }
@@ -137,6 +178,17 @@ mod tests {
             CallbackAction::Status(TaskStatus::Done),
             CallbackAction::SkipField,
             CallbackAction::Cancel,
+            CallbackAction::RunCommand(Command::Start),
+            CallbackAction::RunCommand(Command::Help),
+            CallbackAction::RunCommand(Command::StartDay),
+            CallbackAction::RunCommand(Command::FinishDay),
+            CallbackAction::RunCommand(Command::Report),
+            CallbackAction::RunCommand(Command::ReportWeek),
+            CallbackAction::RunCommand(Command::ReportMonth),
+            CallbackAction::RunCommand(Command::ExportCsv),
+            CallbackAction::RunCommand(Command::NewTask),
+            CallbackAction::RunCommand(Command::Tasks),
+            CallbackAction::RunCommand(Command::EditTask),
         ]
     }
 
