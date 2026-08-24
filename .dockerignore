@@ -1,0 +1,44 @@
+# Сборочные артефакты — самое дорогое, что можно случайно затащить в контекст.
+target/
+**/target/
+
+# VCS и CI
+.git/
+.gitignore
+.github/
+
+# Секреты и локальные env-файлы — .env.example специально оставляем как
+# документацию переменных окружения, но не как файл, читаемый сборкой.
+.env
+.env.*
+!.env.example
+
+# Файлы SQLite, которые могут остаться от локального запуска вне контейнера.
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.db
+*.db-wal
+*.db-shm
+workbeat.db*
+
+# Документация и project management — не нужны для сборки бинаря.
+README.md
+LICENSE
+tasks.md
+supply-chain/
+deny.toml
+
+# Файлы редакторов и ОС.
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Резервные копии rustfmt и артефакты cargo-mutants.
+**/*.rs.bk
+**/mutants.out*/
+
+# Сам Docker-контекст.
+Dockerfile
+.dockerignore
