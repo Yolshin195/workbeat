@@ -59,6 +59,15 @@ async fn on_callback(
     let Some(message) = q.message.as_ref() else {
         return Ok(());
     };
+
+    // Гасим клавиатуру устаревшего сообщения безусловно, до разбора intent —
+    // иначе старые кнопки Да/Нет/«Задача готова» остаются кликабельными
+    // навсегда и повторное нажатие задним числом сбивает текущий чек-ин
+    // (issue #32).
+    let _ = bot
+        .edit_message_reply_markup(message.chat().id, message.id())
+        .await;
+
     let Some(data) = q.data.as_deref() else {
         return Ok(());
     };
