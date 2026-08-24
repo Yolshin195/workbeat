@@ -2,7 +2,8 @@ name: Release
 
 # Цепочка поставки после мержа PR в main: сперва проверки безопасности
 # (переиспользуют jobs из security.yml) и тесты, и только если оба блока
-# зелёные — сборка и публикация docker-образа в GitHub Container Registry.
+# зелёные — сборка docker-образа по платформам (docker-build) и публикация
+# multi-arch манифеста в GitHub Container Registry (docker-merge).
 on:
   push:
     branches: [ main ]
@@ -33,16 +34,23 @@ jobs:
       - name: Run tests
         run: cargo test --workspace --verbose --locked
 
-  docker:
-    name: Build & Push Docker Image
+  docker-build:
+    name: Build Docker Image (${{ matrix.platform }})
     needs: [ security, test ]
     runs-on: ubuntu-latest
-    # environment с required reviewers ставит джобу на паузу до ручного
-    # подтверждения в Actions UI (см. Settings → Environments → release).
-    environment: release
-    # Сборка arm64 идёт через QEMU-эмуляцию (нативных arm64-раннеров нет),
-    # компиляция Rust под эмуляцией заметно медленнее amd64.
+    # Публикация тегов (и ручное подтверждение) вынесена в docker-merge —
+    # эта job только собирает и пушит слои по digest, без реального релиза,
+    # поэтому approval-гейта здесь нет и она не ждёт ревьюера.
+    #
+    # amd64 и arm64 собираются в отдельных параллельных job вместо одной
+    # buildx-джобы с обеими платформами: раньше arm64 (эмулируется через
+    # QEMU, нативных arm64-раннеров нет) делил CPU одного раннера с amd64
+    # внутри одного `docker buildx build`, что тормозило обе платформы.
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [ linux/amd64, linux/arm64 ]
     permissions:
       contents: read
       packages: write
@@ -69,6 +77,73 @@ jobs:
         run: |
           echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
 
+      - name: Build and push by digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          outputs: type=image,name=${{ steps.image.outputs.name }},push-by-digest=true,name-canonical=true,push=true
+          cache-from: type=gha,scope=${{ matrix.platform }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.platform }}
+
+      - name: Export digest
+        run: |
+          mkdir -p "${{ runner.temp }}/digests"
+          digest="${{ steps.build.outputs.digest }}"
+          touch "${{ runner.temp }}/digests/${digest#sha256:}"
+
+      - name: Sanitize platform for artifact name
+        id: platform_pair
+        run: echo "pair=${platform//\//-}" >> "$GITHUB_OUTPUT"
+        env:
+          platform: ${{ matrix.platform }}
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.platform_pair.outputs.pair }}
+          path: ${{ runner.temp }}/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  docker-merge:
+    name: Publish Docker Image
+    needs: docker-build
+    runs-on: ubuntu-latest
+    # environment с required reviewers ставит джобу на паузу до ручного
+    # подтверждения в Actions UI (см. Settings → Environments → release).
+    # Это единственное место, где под тегами (latest, sha-...) появляется
+    # публично разрешаемый образ — до этого шага в реестре лежат только
+    # непомеченные digest-слои из docker-build.
+    environment: release
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Download digests
+        uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image name (GHCR требует lowercase)
+        id: image
+        run: |
+          echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
       - name: Extract image metadata
         id: meta
         uses: docker/metadata-action@v5
@@ -78,13 +153,13 @@ jobs:
             type=raw,value=latest
             type=sha,prefix=sha-,format=short
 
-      - name: Build and push image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          platforms: linux/amd64,linux/arm64
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+      - name: Create manifest list and push
+        working-directory: ${{ runner.temp }}/digests
+        run: |
+          docker buildx imagetools create \
+            $(jq -cr '.tags | map("-t " + .) | join(" ")' <<< "$DOCKER_METADATA_OUTPUT_JSON") \
+            $(printf '${{ steps.image.outputs.name }}@sha256:%s ' *)
+
+      - name: Inspect image
+        run: |
+          docker buildx imagetools inspect ${{ steps.image.outputs.name }}:${{ steps.meta.outputs.version }}
