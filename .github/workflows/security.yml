@@ -47,12 +47,14 @@ jobs:
           # cron и ручной запуск всегда должны реально выполняться
           do_not_skip: '["schedule", "workflow_dispatch"]'
 
-  audit:
-    name: Cargo Audit
+  checks:
+    name: Cargo Audit / Deny / Vet
     needs: pre_check
     if: needs.pre_check.outputs.should_skip != 'true'
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
+    # Все три проверки лёгкие и не собирают проект — объединены в одну job,
+    # чтобы не платить за checkout + restore кеша трижды на отдельных раннерах.
     # actions-rust-lang/audit по умолчанию пытается создавать issue
     # на найденные уязвимости на main/master — для этого нужен issues: write
     permissions:
@@ -61,40 +63,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rust-lang/audit@v1
+      - name: Cargo Audit
+        uses: actions-rust-lang/audit@v1
         with:
           # Завершать работу с ошибкой, если найдены предупреждения
           # (unmaintained/yanked-крейты), а не только реальные уязвимости
           denyWarnings: true
-
-  deny:
-    name: Cargo Deny
-    needs: pre_check
-    if: needs.pre_check.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
       # требует deny.toml в корне репо (cargo deny init)
-      - uses: EmbarkStudios/cargo-deny-action@v2
-
-  vet:
-    name: Cargo Vet
-    needs: pre_check
-    if: needs.pre_check.outputs.should_skip != 'true'
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    # supply-chain/ настроен (cargo vet init + импорт mozilla/google/embark-studios),
-    # cargo vet проходит — job теперь блокирующий
-    steps:
-      - uses: actions/checkout@v4
-      - uses: Swatinem/rust-cache@v2
+      - name: Cargo Deny
+        uses: EmbarkStudios/cargo-deny-action@v2
+      # supply-chain/ настроен (cargo vet init + импорт mozilla/google/embark-studios),
+      # cargo vet проходит — шаг блокирующий
       - name: Install cargo-vet
         uses: taiki-e/install-action@v2
         with:
           tool: cargo-vet
-      - name: Run cargo vet
+      - name: Cargo Vet
         run: cargo vet
 
   auditable:
@@ -113,4 +97,6 @@ jobs:
         with:
           tool: cargo-auditable
       - name: Build with embedded dependency info
-        run: cargo auditable build --release --locked
+        # --bin workbeat: собираем ровно тот таргет, что уходит в Docker-образ
+        # (см. Dockerfile), а не весь workspace целиком
+        run: cargo auditable build --release --locked --bin workbeat
