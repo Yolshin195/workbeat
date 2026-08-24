@@ -37,6 +37,9 @@ jobs:
     name: Build & Push Docker Image
     needs: [ security, test ]
     runs-on: ubuntu-latest
+    # environment с required reviewers ставит джобу на паузу до ручного
+    # подтверждения в Actions UI (см. Settings → Environments → release).
+    environment: release
     # Сборка arm64 идёт через QEMU-эмуляцию (нативных arm64-раннеров нет),
     # компиляция Rust под эмуляцией заметно медленнее amd64.
     timeout-minutes: 60
