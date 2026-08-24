@@ -37,30 +37,31 @@ jobs:
   docker-build:
     name: Build Docker Image (${{ matrix.platform }})
     needs: [ security, test ]
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     # Публикация тегов (и ручное подтверждение) вынесена в docker-merge —
     # эта job только собирает и пушит слои по digest, без реального релиза,
     # поэтому approval-гейта здесь нет и она не ждёт ревьюера.
     #
-    # amd64 и arm64 собираются в отдельных параллельных job вместо одной
-    # buildx-джобы с обеими платформами: раньше arm64 (эмулируется через
-    # QEMU, нативных arm64-раннеров нет) делил CPU одного раннера с amd64
-    # внутри одного `docker buildx build`, что тормозило обе платформы.
+    # amd64 и arm64 собираются в отдельных параллельных job на СВОИХ
+    # нативных раннерах (ubuntu-latest / ubuntu-24.04-arm), без QEMU.
+    # Раньше arm64 эмулировалась через QEMU поверх x86-раннера — это давало
+    # ~10-15x замедление на cargo build под Rust (каждая инструкция
+    # транслировалась программно). Нативный ARM-раннер убирает эмуляцию
+    # целиком, поэтому шаг setup-qemu-action больше не нужен.
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        platform: [ linux/amd64, linux/arm64 ]
+        include:
+          - platform: linux/amd64
+            runner: ubuntu-latest
+          - platform: linux/arm64
+            runner: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-        with:
-          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
