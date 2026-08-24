@@ -49,6 +49,24 @@ cargo clippy --workspace --all-targets
 тестами через `cargo test --workspace` на временной SQLite-БД, без внешних
 сервисов.
 
+## Docker-образ
+
+После каждого мержа в `main` CI (`.github/workflows/release.yml`) прогоняет
+проверки безопасности и тесты, а затем публикует готовый образ в GitHub
+Container Registry — собирать его локально не обязательно:
+
+```sh
+docker pull ghcr.io/yolshin195/workbeat:latest
+docker run -d --name workbeat \
+  -e TELEGRAM_BOT_TOKEN=... \
+  -v workbeat-data:/data \
+  ghcr.io/yolshin195/workbeat:latest
+```
+
+Помимо `latest` каждый образ дополнительно помечается тегом `sha-<короткий
+commit sha>` — так можно закрепиться на конкретной ревизии вместо плавающего
+`latest`.
+
 ## Архитектура
 
 Гексагональная архитектура (порты/адаптеры) — подробный план по задачам см.
