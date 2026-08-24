@@ -36,6 +36,8 @@ pub enum IncomingEvent {
 pub enum Intent {
     /// Чистый: показать приветствие/список команд.
     ShowWelcome,
+    /// Чистый: показать список команд с кнопками-ярлыками (`/help`).
+    ShowHelp,
     StartDay,
     FinishDay {
         work_day_id: WorkDayId,
@@ -163,6 +165,7 @@ pub fn interpret(session: &ChatSession, event: IncomingEvent) -> Intent {
 fn interpret_command(session: &ChatSession, command: Command) -> Intent {
     match command {
         Command::Start => Intent::ShowWelcome,
+        Command::Help => Intent::ShowHelp,
         Command::StartDay => Intent::StartDay,
         Command::FinishDay => require_work_day(session, text::DAY_NOT_OPEN, |work_day_id| {
             Intent::FinishDay { work_day_id }
@@ -257,6 +260,7 @@ fn interpret_callback(session: &ChatSession, action: CallbackAction) -> Intent {
         CallbackAction::Status(status) => interpret_status_choice(session, status),
         CallbackAction::SkipField => interpret_skip_field(session),
         CallbackAction::Cancel => Intent::CancelDialog,
+        CallbackAction::RunCommand(command) => interpret_command(session, command),
     }
 }
 
@@ -455,6 +459,38 @@ mod tests {
         let mut session = ChatSession::default();
         f(&mut session);
         session
+    }
+
+    #[test]
+    fn help_command_shows_help() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::Help)),
+            Intent::ShowHelp
+        );
+    }
+
+    #[test]
+    fn help_menu_button_runs_the_same_logic_as_the_matching_command() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(
+                &session,
+                IncomingEvent::Callback(CallbackAction::RunCommand(Command::FinishDay))
+            ),
+            Intent::Unavailable(text::DAY_NOT_OPEN)
+        );
+
+        let session = session_with(|s| s.work_day_id = Some(WorkDayId::new(7)));
+        assert_eq!(
+            interpret(
+                &session,
+                IncomingEvent::Callback(CallbackAction::RunCommand(Command::FinishDay))
+            ),
+            Intent::FinishDay {
+                work_day_id: WorkDayId::new(7)
+            }
+        );
     }
 
     #[test]

@@ -3,11 +3,13 @@
 
 use teloxide::utils::command::BotCommands;
 
-#[derive(BotCommands, Debug, Clone, PartialEq, Eq)]
+#[derive(BotCommands, Debug, Clone, Copy, PartialEq, Eq)]
 #[command(rename_rule = "snake_case", description = "Команды workbeat:")]
 pub enum Command {
     #[command(description = "начать/перезапустить диалог")]
     Start,
+    #[command(description = "список команд с кнопками")]
+    Help,
     #[command(description = "начать рабочий день")]
     StartDay,
     #[command(description = "завершить рабочий день")]
@@ -34,6 +36,7 @@ mod tests {
 
     #[test]
     fn parses_known_commands() {
+        assert_eq!(Command::parse("/help", "bot").unwrap(), Command::Help);
         assert_eq!(Command::parse("/start_day", "bot").unwrap(), Command::StartDay);
         assert_eq!(Command::parse("/finish_day", "bot").unwrap(), Command::FinishDay);
         assert_eq!(Command::parse("/report", "bot").unwrap(), Command::Report);

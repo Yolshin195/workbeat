@@ -4,7 +4,20 @@
 
 pub const WELCOME: &str =
     "Привет! Я помогу дисциплинировать рабочий день по методике 50/10.\n\
-     Команды: /start_day, /finish_day, /report, /report_week, /report_month, /new_task, /tasks, /edit_task.";
+     Команды: /start_day, /finish_day, /report, /report_week, /report_month, /new_task, /tasks, /edit_task.\n\
+     Наберите /help, чтобы увидеть все команды в виде кнопок.";
+
+pub const HELP_TEXT: &str = "Все команды бота. Нажми на кнопку или используй текстовую команду:";
+
+pub const BTN_START_DAY: &str = "Начать день (/start_day)";
+pub const BTN_FINISH_DAY: &str = "Завершить день (/finish_day)";
+pub const BTN_REPORT: &str = "Отчёт за сегодня (/report)";
+pub const BTN_REPORT_WEEK: &str = "Отчёт за неделю (/report_week)";
+pub const BTN_REPORT_MONTH: &str = "Отчёт за месяц (/report_month)";
+pub const BTN_EXPORT_CSV: &str = "Экспорт в CSV (/export_csv)";
+pub const BTN_NEW_TASK: &str = "Новая задача (/new_task)";
+pub const BTN_TASKS: &str = "Пул задач (/tasks)";
+pub const BTN_EDIT_TASK: &str = "Редактировать задачу (/edit_task)";
 
 pub const DAY_ALREADY_OPEN: &str = "День уже начат.";
 pub const DAY_STARTED: &str = "День начат! Выбери задачу, чтобы начать интервал.";
