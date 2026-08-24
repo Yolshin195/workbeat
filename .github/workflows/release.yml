@@ -37,12 +37,19 @@ jobs:
     name: Build & Push Docker Image
     needs: [ security, test ]
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Сборка arm64 идёт через QEMU-эмуляцию (нативных arm64-раннеров нет),
+    # компиляция Rust под эмуляцией заметно медленнее amd64.
+    timeout-minutes: 60
     permissions:
       contents: read
       packages: write
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -72,6 +79,7 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
+          platforms: linux/amd64,linux/arm64
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
