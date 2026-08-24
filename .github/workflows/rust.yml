@@ -1,8 +1,8 @@
 name: Rust
 
 on:
-  push:
-    branches: [ "main" ]
+  # gate перед мержем PR; после мержа тесты на main прогоняет release.yml —
+  # дублировать их здесь через push не нужно
   pull_request:
     branches: [ "main" ]
 
