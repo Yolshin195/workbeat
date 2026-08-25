@@ -59,6 +59,14 @@ async fn on_callback(
     let Some(message) = q.message.as_ref() else {
         return Ok(());
     };
+
+    // Снимаем клавиатуру со старого сообщения безусловно, до обработки intent —
+    // иначе повторное нажатие по устаревшей кнопке (двойная доставка callback от
+    // Telegram, клик по памяти) повторно триггерит переход в следующий слот.
+    let _ = bot
+        .edit_message_reply_markup(message.chat().id, message.id())
+        .await;
+
     let Some(data) = q.data.as_deref() else {
         return Ok(());
     };
