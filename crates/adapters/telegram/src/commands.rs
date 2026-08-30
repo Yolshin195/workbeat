@@ -28,6 +28,12 @@ pub enum Command {
     Tasks,
     #[command(description = "отредактировать задачу")]
     EditTask,
+    #[command(description = "статус текущего интервала")]
+    CurrentInterval,
+    #[command(description = "начать интервал")]
+    StartInterval,
+    #[command(description = "завершить текущий интервал")]
+    FinishInterval,
 }
 
 #[cfg(test)]
@@ -51,6 +57,18 @@ mod tests {
         assert_eq!(Command::parse("/new_task", "bot").unwrap(), Command::NewTask);
         assert_eq!(Command::parse("/tasks", "bot").unwrap(), Command::Tasks);
         assert_eq!(Command::parse("/edit_task", "bot").unwrap(), Command::EditTask);
+        assert_eq!(
+            Command::parse("/current_interval", "bot").unwrap(),
+            Command::CurrentInterval
+        );
+        assert_eq!(
+            Command::parse("/start_interval", "bot").unwrap(),
+            Command::StartInterval
+        );
+        assert_eq!(
+            Command::parse("/finish_interval", "bot").unwrap(),
+            Command::FinishInterval
+        );
     }
 
     #[test]

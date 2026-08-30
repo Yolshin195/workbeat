@@ -18,6 +18,9 @@ pub const BTN_EXPORT_CSV: &str = "Экспорт в CSV (/export_csv)";
 pub const BTN_NEW_TASK: &str = "Новая задача (/new_task)";
 pub const BTN_TASKS: &str = "Пул задач (/tasks)";
 pub const BTN_EDIT_TASK: &str = "Редактировать задачу (/edit_task)";
+pub const BTN_CURRENT_INTERVAL: &str = "Текущий интервал (/current_interval)";
+pub const BTN_START_INTERVAL: &str = "Начать интервал (/start_interval)";
+pub const BTN_FINISH_INTERVAL: &str = "Завершить интервал (/finish_interval)";
 
 pub const DAY_ALREADY_OPEN: &str = "День уже начат.";
 pub const DAY_STARTED: &str = "День начат! Выбери задачу, чтобы начать интервал.";
@@ -85,6 +88,7 @@ pub const TASK_UPDATED: &str = "Задача обновлена.";
 pub const SKIP_FIELD_BUTTON: &str = "Оставить как есть";
 
 pub const NO_ACTIVE_TASK_TO_SWITCH: &str = "Сейчас нет активной задачи в этом интервале.";
+pub const NO_ACTIVE_INTERVAL: &str = "Сейчас нет открытого интервала.";
 
 pub const REPORT_EMPTY_DAY: &str = "День ещё не начат.";
 pub const CSV_FILENAME: &str = "report.csv";
@@ -152,6 +156,17 @@ pub fn interval_finished_summary(closed: u8, needed: u8) -> String {
 pub fn format_duration(duration: chrono::Duration) -> String {
     let minutes = duration.num_minutes();
     format!("{}ч {:02}м", minutes / 60, minutes % 60)
+}
+
+/// Текст `/current_interval` — активная задача, время в текущем интервале и
+/// суммарное время по этой задаче за всё время (issue #38).
+pub fn current_interval_status(status: &application::CurrentIntervalStatus) -> String {
+    format!(
+        "Сейчас: {}\nВ интервале: {}\nВсего по задаче: {}",
+        status.task_title,
+        format_duration(status.elapsed_in_interval),
+        format_duration(status.total_task_time),
+    )
 }
 
 #[cfg(test)]

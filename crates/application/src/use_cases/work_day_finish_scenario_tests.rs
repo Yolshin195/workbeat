@@ -18,8 +18,9 @@ use crate::testing::{
     InMemoryTenMinCheckRepository, InMemoryWorkDayRepository,
 };
 use crate::use_cases::{
-    EndLunch, FinishHourInterval, FinishWorkDay, MarkReturnedFromRest, MarkTaskDone,
-    MarkTaskInProgress, StartHourInterval, StartLunch, SubmitTenMinAnswer, SwitchTaskMidInterval,
+    EndLunch, FinishHourInterval, FinishWorkDay, ForceCloseHourInterval, MarkReturnedFromRest,
+    MarkTaskDone, MarkTaskInProgress, StartHourInterval, StartLunch, SubmitTenMinAnswer,
+    SwitchTaskMidInterval,
 };
 
 struct World {
@@ -133,6 +134,11 @@ impl World {
             self.ten_min_check_repository.clone(),
             self.clock.clone(),
             self.notifier.clone(),
+            Arc::new(ForceCloseHourInterval::new(
+                self.hour_interval_repository.clone(),
+                self.ten_min_check_repository.clone(),
+                self.clock.clone(),
+            )),
         )
     }
 
