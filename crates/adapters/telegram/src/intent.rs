@@ -92,6 +92,17 @@ pub enum Intent {
         interval_id: HourIntervalId,
         summary: String,
     },
+    /// Статус текущего интервала (`/current_interval`, issue #38) — read-only,
+    /// сам ищет открытый интервал по `work_day_id`.
+    ShowCurrentInterval {
+        work_day_id: WorkDayId,
+    },
+    /// Принудительное завершение текущего интервала (`/finish_interval`,
+    /// issue #38), не дожидаясь 5/5 успешных десятиминуток — та же логика,
+    /// что использует `/finish_day` посреди интервала.
+    ForceFinishInterval {
+        work_day_id: WorkDayId,
+    },
     StartLunch {
         work_day_id: WorkDayId,
     },
@@ -185,6 +196,15 @@ fn interpret_command(session: &ChatSession, command: Command) -> Intent {
         Command::NewTask => Intent::StartNewTaskDialog,
         Command::Tasks => Intent::ListAllTasks,
         Command::EditTask => Intent::StartEditTaskDialog,
+        Command::CurrentInterval => require_work_day(session, text::DAY_NOT_OPEN, |work_day_id| {
+            Intent::ShowCurrentInterval { work_day_id }
+        }),
+        Command::StartInterval => require_work_day(session, text::DAY_NOT_OPEN, |work_day_id| {
+            Intent::ListTasksToStartInterval { work_day_id }
+        }),
+        Command::FinishInterval => require_work_day(session, text::DAY_NOT_OPEN, |work_day_id| {
+            Intent::ForceFinishInterval { work_day_id }
+        }),
     }
 }
 
@@ -517,6 +537,67 @@ mod tests {
         assert_eq!(
             interpret(&session, IncomingEvent::Command(Command::FinishDay)),
             Intent::FinishDay {
+                work_day_id: WorkDayId::new(5)
+            }
+        );
+    }
+
+    #[test]
+    fn current_interval_without_cached_work_day_is_unavailable() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::CurrentInterval)),
+            Intent::Unavailable(text::DAY_NOT_OPEN)
+        );
+    }
+
+    #[test]
+    fn current_interval_with_cached_work_day_uses_it() {
+        let session = session_with(|s| s.work_day_id = Some(WorkDayId::new(5)));
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::CurrentInterval)),
+            Intent::ShowCurrentInterval {
+                work_day_id: WorkDayId::new(5)
+            }
+        );
+    }
+
+    #[test]
+    fn start_interval_command_lists_tasks_like_the_button() {
+        let session = session_with(|s| s.work_day_id = Some(WorkDayId::new(5)));
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::StartInterval)),
+            interpret(
+                &session,
+                IncomingEvent::Callback(CallbackAction::RequestStartInterval)
+            )
+        );
+    }
+
+    #[test]
+    fn start_interval_without_cached_work_day_is_unavailable() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::StartInterval)),
+            Intent::Unavailable(text::DAY_NOT_OPEN)
+        );
+    }
+
+    #[test]
+    fn finish_interval_without_cached_work_day_is_unavailable() {
+        let session = ChatSession::default();
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::FinishInterval)),
+            Intent::Unavailable(text::DAY_NOT_OPEN)
+        );
+    }
+
+    #[test]
+    fn finish_interval_with_cached_work_day_uses_it() {
+        let session = session_with(|s| s.work_day_id = Some(WorkDayId::new(5)));
+        assert_eq!(
+            interpret(&session, IncomingEvent::Command(Command::FinishInterval)),
+            Intent::ForceFinishInterval {
                 work_day_id: WorkDayId::new(5)
             }
         );

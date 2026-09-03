@@ -130,6 +130,9 @@ pub fn help_keyboard() -> InlineKeyboardMarkup {
         vec![button(text::BTN_NEW_TASK, run(Command::NewTask))],
         vec![button(text::BTN_TASKS, run(Command::Tasks))],
         vec![button(text::BTN_EDIT_TASK, run(Command::EditTask))],
+        vec![button(text::BTN_CURRENT_INTERVAL, run(Command::CurrentInterval))],
+        vec![button(text::BTN_START_INTERVAL, run(Command::StartInterval))],
+        vec![button(text::BTN_FINISH_INTERVAL, run(Command::FinishInterval))],
     ])
 }
 
@@ -177,6 +180,6 @@ mod tests {
         let keyboard = help_keyboard();
         let button_count: usize = keyboard.inline_keyboard.iter().map(Vec::len).sum();
         // Все команды, кроме /start и /help.
-        assert_eq!(button_count, 9);
+        assert_eq!(button_count, 12);
     }
 }

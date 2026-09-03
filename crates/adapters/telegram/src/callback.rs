@@ -114,6 +114,9 @@ fn command_tag(command: Command) -> &'static str {
         Command::NewTask => "new_task",
         Command::Tasks => "tasks",
         Command::EditTask => "edit_task",
+        Command::CurrentInterval => "current_interval",
+        Command::StartInterval => "start_interval_cmd",
+        Command::FinishInterval => "finish_interval",
     }
 }
 
@@ -130,6 +133,9 @@ fn parse_command_tag(tag: &str) -> Option<Command> {
         "new_task" => Some(Command::NewTask),
         "tasks" => Some(Command::Tasks),
         "edit_task" => Some(Command::EditTask),
+        "current_interval" => Some(Command::CurrentInterval),
+        "start_interval_cmd" => Some(Command::StartInterval),
+        "finish_interval" => Some(Command::FinishInterval),
         _ => None,
     }
 }
@@ -189,6 +195,9 @@ mod tests {
             CallbackAction::RunCommand(Command::NewTask),
             CallbackAction::RunCommand(Command::Tasks),
             CallbackAction::RunCommand(Command::EditTask),
+            CallbackAction::RunCommand(Command::CurrentInterval),
+            CallbackAction::RunCommand(Command::StartInterval),
+            CallbackAction::RunCommand(Command::FinishInterval),
         ]
     }
 

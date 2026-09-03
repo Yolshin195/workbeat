@@ -8,10 +8,10 @@ use std::sync::Arc;
 
 use application::{
     BuildDayReport, BuildPeriodReport, ConfirmReadyToContinue, CreateTask, EndLunch,
-    ExportDayReportCsv, FinishHourInterval, FinishWorkDay, ListAvailableTasks,
-    MarkReturnedFromRest, RegisterUserIfNotExists, StartHourInterval, StartLunch, StartWorkDay,
-    SubmitFailureReason, SubmitTenMinAnswer, SuggestLunchAfterNthInterval, SwitchTaskMidInterval,
-    UpdateTask,
+    ExportDayReportCsv, FinishHourInterval, FinishWorkDay, ForceCloseHourInterval,
+    ListAvailableTasks, MarkReturnedFromRest, RegisterUserIfNotExists, ShowCurrentInterval,
+    StartHourInterval, StartLunch, StartWorkDay, SubmitFailureReason, SubmitTenMinAnswer,
+    SuggestLunchAfterNthInterval, SwitchTaskMidInterval, UpdateTask,
 };
 
 /// Все use cases, которые могут быть вызваны входящим апдейтом Telegram.
@@ -35,6 +35,8 @@ pub struct UseCases {
     pub build_day_report: Arc<BuildDayReport>,
     pub build_period_report: Arc<BuildPeriodReport>,
     pub export_day_report_csv: Arc<ExportDayReportCsv>,
+    pub show_current_interval: Arc<ShowCurrentInterval>,
+    pub force_close_hour_interval: Arc<ForceCloseHourInterval>,
 }
 
 impl UseCases {
@@ -59,6 +61,8 @@ impl UseCases {
         build_day_report: Arc<BuildDayReport>,
         build_period_report: Arc<BuildPeriodReport>,
         export_day_report_csv: Arc<ExportDayReportCsv>,
+        show_current_interval: Arc<ShowCurrentInterval>,
+        force_close_hour_interval: Arc<ForceCloseHourInterval>,
     ) -> Self {
         Self {
             register_user,
@@ -80,6 +84,8 @@ impl UseCases {
             build_day_report,
             build_period_report,
             export_day_report_csv,
+            show_current_interval,
+            force_close_hour_interval,
         }
     }
 }

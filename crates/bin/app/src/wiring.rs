@@ -17,10 +17,11 @@ use adapters_persistence_sqlite::{
 use adapters_scheduler_tokio::PollLoop;
 use application::{
     AdvanceOpenTenMinChecks, BuildDayReport, BuildPeriodReport, Clock, ConfirmReadyToContinue,
-    CreateTask, EndLunch, ExportDayReportCsv, FinishHourInterval, FinishWorkDay, IdlePromptConfig,
-    ListAvailableTasks, MarkReturnedFromRest, MarkTaskDone, MarkTaskInProgress, Notifier,
-    PromptContinueIfIdle, RegisterUserIfNotExists, RemindAwaitingResume, ReminderScheduleConfig,
-    StartHourInterval, StartLunch, StartWorkDay, SubmitFailureReason, SubmitTenMinAnswer,
+    CreateTask, EndLunch, ExportDayReportCsv, FinishHourInterval, FinishWorkDay,
+    ForceCloseHourInterval, IdlePromptConfig, ListAvailableTasks, MarkReturnedFromRest,
+    MarkTaskDone, MarkTaskInProgress, Notifier, PromptContinueIfIdle, RegisterUserIfNotExists,
+    RemindAwaitingResume, ReminderScheduleConfig, ShowCurrentInterval, StartHourInterval,
+    StartLunch, StartWorkDay, SubmitFailureReason, SubmitTenMinAnswer,
     SuggestLunchAfterNthInterval, SwitchTaskMidInterval, UpdateTask,
 };
 use sqlx::SqlitePool;
@@ -72,12 +73,18 @@ pub fn wire(adapters: Adapters) -> Wired {
         work_day_repository.clone(),
         clock.clone(),
     ));
+    let force_close_hour_interval = Arc::new(ForceCloseHourInterval::new(
+        hour_interval_repository.clone(),
+        ten_min_check_repository.clone(),
+        clock.clone(),
+    ));
     let finish_work_day = Arc::new(FinishWorkDay::new(
         work_day_repository.clone(),
         hour_interval_repository.clone(),
         ten_min_check_repository.clone(),
         clock.clone(),
         notifier.clone(),
+        force_close_hour_interval.clone(),
     ));
 
     let create_task = Arc::new(CreateTask::new(task_repository.clone(), clock.clone()));
@@ -158,6 +165,13 @@ pub fn wire(adapters: Adapters) -> Wired {
         ten_min_check_repository.clone(),
         task_repository.clone(),
     ));
+    let show_current_interval = Arc::new(ShowCurrentInterval::new(
+        hour_interval_repository.clone(),
+        ten_min_check_repository.clone(),
+        work_day_repository.clone(),
+        task_repository.clone(),
+        clock.clone(),
+    ));
 
     let advance_open_ten_min_checks = Arc::new(AdvanceOpenTenMinChecks::new(
         ten_min_check_repository.clone(),
@@ -203,6 +217,8 @@ pub fn wire(adapters: Adapters) -> Wired {
         build_day_report,
         build_period_report,
         export_day_report_csv,
+        show_current_interval,
+        force_close_hour_interval,
     ));
 
     let poll_loop = PollLoop::new(

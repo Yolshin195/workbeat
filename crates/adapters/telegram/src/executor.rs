@@ -114,6 +114,12 @@ pub async fn handle_intent(
         } => {
             handle_finish_interval(bot, deps, chat_id, &mut session, interval_id, summary).await
         }
+        Intent::ShowCurrentInterval { work_day_id } => {
+            handle_show_current_interval(bot, deps, chat_id, user_id, work_day_id).await
+        }
+        Intent::ForceFinishInterval { work_day_id } => {
+            handle_force_finish_interval(bot, deps, chat_id, &mut session, work_day_id).await
+        }
         Intent::StartLunch { work_day_id } => {
             handle_start_lunch(bot, deps, chat_id, &mut session, work_day_id).await
         }
@@ -605,6 +611,65 @@ async fn handle_finish_interval(
             )
             .await;
         }
+        Err(_) => send_text(bot, chat_id, text::GENERIC_ERROR).await,
+    }
+}
+
+async fn handle_show_current_interval(
+    bot: &Bot,
+    deps: &UseCases,
+    chat_id: ChatId,
+    user_id: TelegramId,
+    work_day_id: domain::WorkDayId,
+) {
+    match deps.show_current_interval.execute(user_id, work_day_id).await {
+        Ok(Some(status)) => {
+            send_text(bot, chat_id, &text::current_interval_status(&status)).await;
+        }
+        Ok(None) => send_text(bot, chat_id, text::NO_ACTIVE_INTERVAL).await,
+        Err(_) => send_text(bot, chat_id, text::GENERIC_ERROR).await,
+    }
+}
+
+/// Принудительное завершение интервала по `/finish_interval` — по договорённости
+/// (issue #38) ведёт себя так же, как естественное 5/5 завершение
+/// (`handle_finish_interval` выше): тот же текст, тот же вызов
+/// `suggest_lunch_after_nth_interval`, та же клавиатура выбора следующего шага.
+async fn handle_force_finish_interval(
+    bot: &Bot,
+    deps: &UseCases,
+    chat_id: ChatId,
+    session: &mut ChatSession,
+    work_day_id: domain::WorkDayId,
+) {
+    match deps.force_close_hour_interval.execute(work_day_id).await {
+        Ok(Some(interval)) => {
+            session.interval_id = None;
+            session.worked_in_interval = 0;
+            session.rest_active = false;
+            session.awaiting = Awaiting::Nothing;
+
+            send_text(
+                bot,
+                chat_id,
+                &text::interval_finished_summary(interval.successful_count().value(), 5),
+            )
+            .await;
+
+            let _ = deps
+                .suggest_lunch_after_nth_interval
+                .execute(work_day_id)
+                .await;
+
+            send_text_kb(
+                bot,
+                chat_id,
+                text::START_NEXT_INTERVAL_BUTTON,
+                keyboards::after_interval_keyboard(),
+            )
+            .await;
+        }
+        Ok(None) => send_text(bot, chat_id, text::NO_ACTIVE_INTERVAL).await,
         Err(_) => send_text(bot, chat_id, text::GENERIC_ERROR).await,
     }
 }
